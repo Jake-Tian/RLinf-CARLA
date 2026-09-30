@@ -1,22 +1,24 @@
 # RLinf + CARLA
 
-在 [RLinf](https://github.com/RLinf/RLinf) 上接入 CARLA 0.9.16，使 StarVLA 的三维连续控制策略可以进行同步和异步 GRPO 训练。本仓库以 RLinf 提交 `db66ac56d1aa4a9c8441c4026e4212b21811970d` 为基线，保持原有环境和模型的默认行为。
+English | [简体中文](README.zh-CN.md)
 
-## 做了哪些更新
+This repository integrates CARLA 0.9.16 with [RLinf](https://github.com/RLinf/RLinf) for synchronous and asynchronous GRPO training of a StarVLA policy with three-dimensional continuous controls. It is based on RLinf commit `db66ac56d1aa4a9c8441c4026e4212b21811970d` and preserves the default behavior of existing environments and models.
 
-| 位置 | 更新 |
+## What changed
+
+| Location | Changes |
 | --- | --- |
-| [CARLA 环境](rlinf/envs/sim/carla/) | 增加 server 管理、并行环境、route、观测、奖励和 episode 结束条件，并接入 RLinf 环境注册。 |
-| [StarVLA 适配](rlinf/models/) | 处理三维动作反归一化，支持可配置的 LoRA 目标模块，并兼容没有 value head 的配置。 |
-| [GRPO 配置](examples/embodiment/config/) | 新增同步、异步共卡、异步分卡三套 CARLA 配置。 |
-| [异步入口](examples/embodiment/carla/async_grpo/) | 基于 RLinf runner 增加 GRPO group 完整性检查和可选的 rollout 配速。 |
-| [CARLA 工具](examples/embodiment/carla/) | 增加环境 smoke、配置预检、SFT 数据采集及 StarVLA 数据适配。 |
+| [CARLA environment](rlinf/envs/sim/carla/) | Adds server management, parallel environments, routes, observations, rewards, episode termination, and RLinf environment registration. |
+| [StarVLA integration](rlinf/models/) | Handles three-dimensional action unnormalization, configurable LoRA target modules, and configurations without a value head. |
+| [GRPO configurations](examples/embodiment/config/) | Adds synchronous, asynchronous colocated, and asynchronous split-GPU CARLA configurations. |
+| [Asynchronous entry point](examples/embodiment/carla/async_grpo/) | Extends RLinf's runner with GRPO group-integrity checks and optional rollout pacing. |
+| [CARLA utilities](examples/embodiment/carla/) | Adds an environment smoke test, configuration preflight, SFT data collection, and StarVLA data adapters. |
 
-训练配置使用 Qwen3-VL-2B + StarVLA MLP 动作头，输出 `steer, throttle, brake`，action horizon 为 6。默认 placement 面向单机 8 张 RTX 3090。仓库不包含 CARLA server、模型权重、数据集或 route 文件。
+The training configurations use Qwen3-VL-2B with a StarVLA MLP action head. The control order is `steer, throttle, brake`, and the action horizon is 6. The default placement targets one machine with eight RTX 3090 GPUs. This repository does not include the CARLA server, model weights, datasets, or route files.
 
-## 1. 安装
+## 1. Install
 
-在 Linux NVIDIA GPU 机器上，从仓库根目录执行。RLinf 安装脚本目前没有 `--env carla`，这里用 StarVLA + Libero 依赖组合，再安装与 CARLA server 同为 **0.9.16** 的 Python wheel。
+Run these commands from the repository root on a Linux machine with NVIDIA GPUs. RLinf's installation script does not currently offer `--env carla`, so install the StarVLA + Libero dependency combination, then install a CARLA Python wheel that matches the **0.9.16** server version.
 
 ```bash
 git clone https://github.com/Jake-Tian/RLinf-CARLA.git
@@ -26,11 +28,11 @@ source .venv/bin/activate
 python -m pip install /absolute/path/to/carla-0.9.16-wheel.whl
 ```
 
-安装脚本默认使用 Python 3.11.14，并将 StarVLA checkout 放在 `.venv/starVLA/`。CARLA server、匹配的 wheel 和地图请按 [CARLA 官方安装说明](https://carla.readthedocs.io/en/latest/start_quickstart/)准备。
+The install script defaults to Python 3.11.14 and places the StarVLA checkout in `.venv/starVLA/`. Obtain the CARLA server, matching wheel, and maps using the [official CARLA installation guide](https://carla.readthedocs.io/en/latest/start_quickstart/).
 
-## 2. 配置资产
+## 2. Configure assets
 
-`route.txt` 每行包含一个 `x y` 坐标，至少需要两个不同的点。checkpoint 必须匹配 Qwen3-VL-2B 和三维动作头，不能直接使用未适配的通用 VLM 权重。以下命令在仓库根目录执行：
+Each line of `route.txt` contains an `x y` coordinate; the file needs at least two distinct points. The checkpoint must match Qwen3-VL-2B and the three-dimensional action head. An unadapted general-purpose VLM checkpoint cannot be used directly. Run the following from the repository root:
 
 ```bash
 export EMBODIED_PATH="$PWD/examples/embodiment"
@@ -42,11 +44,11 @@ export WANDB_MODE=offline
 mkdir -p "$CARLA_OUTPUT_DIR"
 ```
 
-如果尚无适配 checkpoint，可先完成下方的 [SFT 数据与模型](#sft-数据与模型)流程。启动 Ray 前先导出环境变量，让 worker 能读取这些路径。
+If you do not yet have a compatible checkpoint, follow [SFT data and model](#sft-data-and-model) first. Export these variables before starting Ray so its workers can read the paths.
 
-## 3. 预检和环境 smoke
+## 3. Run preflight and an environment smoke test
 
-配置预检需要已安装的 RLinf/StarVLA 环境和真实 checkpoint 路径。环境 smoke 会启动 CARLA，用固定动作检查图像及基础交互。smoke 使用脚本生成的测试 route，不能代表给定 `CARLA_ROUTE_FILE` 的驾驶成绩。
+The configuration preflight requires the RLinf/StarVLA environment and a real checkpoint path. The environment smoke test starts CARLA and uses fixed actions to check images and basic interaction. It uses a generated test route, so it does not measure driving performance on `CARLA_ROUTE_FILE`.
 
 ```bash
 python examples/embodiment/carla/verify_env_config.py carla_grpo_starvla
@@ -54,28 +56,28 @@ python examples/embodiment/carla/smoke_carla_env.py \
   --server-dir "$CARLA_SERVER_DIR" --steps 12
 ```
 
-正式训练前，建议在目标 route 上做短训练链，确认环境、模型、Ray 和结果路径都正常。CARLA server 占用较多显存；缩小环境数量时，也需同步调整 GRPO group 和 batch 配置。
+Before a full run, use a short training run on the target route to check the environment, model, Ray setup, and output paths. CARLA servers consume substantial GPU memory. If you reduce the number of environments, adjust the GRPO group and batch settings accordingly.
 
-## 4. 运行 GRPO
+## 4. Run GRPO
 
-RLinf 会优先连接已有 Ray 集群，没有时在本机初始化。三个配置默认均为 8 GPU 布局，运行前核对各自的 `cluster.component_placement`。配置中的 `runner.max_steps: 5` 是短链检查值；要正式训练，先根据训练预算调整 `runner.max_steps` 和 `runner.max_epochs`。
+RLinf connects to an existing Ray cluster when available and otherwise initializes Ray locally. All three configurations assume eight GPUs by default. Check their `cluster.component_placement` settings before running. The configured `runner.max_steps: 5` is for a short integration run. Set `runner.max_steps` and `runner.max_epochs` to match your training budget for a longer run.
 
 ```bash
-# 同步 GRPO
+# Synchronous GRPO
 python examples/embodiment/train_embodied_agent.py \
   --config-name carla_grpo_starvla
 
-# 异步 GRPO，actor 与 rollout 分卡，启用配速
+# Asynchronous GRPO with separate actor and rollout GPUs and pacing enabled
 RLINF_PACE_TO_STALENESS=1 python -m examples.embodiment.carla.async_grpo.train_async_carla \
   --config-path "$PWD/examples/embodiment/config" \
   --config-name carla_grpo_starvla_async_split
 ```
 
-另有 `carla_grpo_starvla_async.yaml`，用于 actor 与 rollout 共卡的异步对照，可用同一异步入口选择。不设置 `RLINF_PACE_TO_STALENESS` 即运行未配速路径。同步和共卡异步配置默认 16 个环境，分卡异步默认 12 个环境，比较效率时应同时报告该差异。
+Use `carla_grpo_starvla_async.yaml` with the same asynchronous entry point for the colocated actor/rollout comparison. Omit `RLINF_PACE_TO_STALENESS` to run without pacing. The synchronous and colocated asynchronous configurations use 16 environments by default; the split-GPU configuration uses 12. Report this difference when comparing throughput.
 
-## SFT 数据与模型
+## SFT data and model
 
-[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) 使用 CARLA BehaviorAgent 采集示范数据和 route。下面是小规模示例：
+[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) uses CARLA's BehaviorAgent to collect demonstrations and routes. This is a small-scale example:
 
 ```bash
 python examples/embodiment/carla/collect_sft_data.py \
@@ -86,7 +88,7 @@ python examples/embodiment/carla/collect_sft_data.py \
   --num-routes 2 --episodes 2
 ```
 
-将 [`data_config.py`](examples/embodiment/carla/starVLA_carla/data_config.py) 放到 StarVLA checkout 的 `examples/RLinfCARLA/CARLA/train_files/data_registry/`，将 [`starvla_carla.yaml`](examples/embodiment/carla/starVLA_carla/starvla_carla.yaml) 放到上一级 `train_files/`。可按下列命令复制：
+Copy [`data_config.py`](examples/embodiment/carla/starVLA_carla/data_config.py) into `examples/RLinfCARLA/CARLA/train_files/data_registry/` in the StarVLA checkout, and [`starvla_carla.yaml`](examples/embodiment/carla/starVLA_carla/starvla_carla.yaml) into its parent `train_files/` directory:
 
 ```bash
 SFT_DIR="$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files"
@@ -95,7 +97,7 @@ cp examples/embodiment/carla/starVLA_carla/data_config.py "$SFT_DIR/data_registr
 cp examples/embodiment/carla/starVLA_carla/starvla_carla.yaml "$SFT_DIR/"
 ```
 
-把 YAML 中的 `base_vlm` 和 `data_root_dir` 改为本机路径，然后检查数据：
+Set `base_vlm` and `data_root_dir` in the copied YAML to local paths, then check the dataset:
 
 ```bash
 python examples/embodiment/carla/check_sft_dataset.py \
@@ -103,12 +105,12 @@ python examples/embodiment/carla/check_sft_dataset.py \
   --config "$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files/starvla_carla.yaml"
 ```
 
-检查通过后，在 StarVLA checkout 内用 `accelerate launch --config_file starVLA/config/deepseeds/deepspeed_zero2.yaml --num_processes 8 starVLA/training/train_starvla.py --config_yaml "$SFT_DIR/starvla_carla.yaml"` 训练。请按实际 GPU 数调整进程数和 YAML 中的 batch 配置。SFT checkpoint 如果缺少 action-window 字段，先用 [修复脚本](examples/embodiment/carla/repair_starvla_ckpt_config.py) 的 `--dry-run` 检查，再按提示修复，最后将 checkpoint 设为 `CARLA_SFT_CHECKPOINT`。细节见 [CARLA 子目录说明](examples/embodiment/carla/README.md)。
+After the check passes, train from the StarVLA checkout with `accelerate launch --config_file starVLA/config/deepseeds/deepspeed_zero2.yaml --num_processes 8 starVLA/training/train_starvla.py --config_yaml "$SFT_DIR/starvla_carla.yaml"`. Adjust the process count and YAML batch settings for your GPU count. If the SFT checkpoint lacks action-window fields, inspect it first with `--dry-run` in the [repair script](examples/embodiment/carla/repair_starvla_ckpt_config.py), apply the suggested repair, and set `CARLA_SFT_CHECKPOINT` to the checkpoint path. See the [CARLA subdirectory guide](examples/embodiment/carla/README.md) for more detail.
 
-## 验证范围
+## Validation scope
 
-原实验在 linux7 的 8 张 RTX 3090 上运行过同步与异步训练链路。同步 Job 14412 稳态约 345.2 秒/步；分卡异步且配速的 Job 14491 在第 10 至 17 步约 246.0 秒/步。两者环境数不同，这些数字仅是效率观察，不能证明驾驶成功率提升。公开代码经过本地静态和单元检查，尚未在新的公开 checkout 上重跑完整 GPU 训练。
+The original experiments ran synchronous and asynchronous training on eight RTX 3090 GPUs on linux7. Synchronous Job 14412 took about 345.2 seconds per steady-state step. Split-GPU asynchronous Job 14491 with pacing took about 246.0 seconds per step over steps 10–17. The runs used different environment counts, so these are efficiency observations and do not establish improved driving success. The published code passed local static and unit checks but has not undergone a complete GPU rerun from a fresh public checkout.
 
-## 来源与许可
+## Origin and licenses
 
-本仓库保留上游 RLinf 的 [Apache-2.0 许可](LICENSE)。CARLA server、资产和 StarVLA 分别按各自项目的许可获取，其代码和权重没有作为仓库文件再分发。
+This repository retains upstream RLinf's [Apache-2.0 license](LICENSE). Obtain the CARLA server, assets, and StarVLA under their respective licenses. Their code and model weights are not redistributed as repository files. The original upstream RLinf Chinese README is preserved as [README.upstream.zh-CN.md](README.upstream.zh-CN.md).
