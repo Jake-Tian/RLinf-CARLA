@@ -21,7 +21,7 @@ export WANDB_MODE=offline
 
 ## 检查与运行
 
-下面的命令从仓库根目录执行。`verify_env_config.py` 只校验配置，`smoke_carla_env.py` 需要实际 CARLA server 和 GPU。正式训练前先用一条代表性 route 做 smoke。
+下面的命令从仓库根目录执行。`verify_env_config.py` 会检查配置及 checkpoint 元数据，需要真实 checkpoint 路径；`smoke_carla_env.py` 需要实际 CARLA server 和 GPU，使用脚本生成的测试 route。正式训练前还需在目标 route 上做短训练链。
 
 ```bash
 python examples/embodiment/carla/verify_env_config.py carla_grpo_starvla
