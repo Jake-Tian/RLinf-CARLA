@@ -1,0 +1,71 @@
+# Env definition for the CARLA driving env, consumed as env/carla@env.train and @env.eval.
+# Every key is read by rlinf/envs/sim/carla/env.py; an absent key falls back to that file.
+env_type: carla
+
+# Overridden by the experiment config in every real run; a number, not null, so a bare launch fails.
+total_num_envs: 4
+
+# True for training: GRPO needs a continuing stream of episodes; a done env wastes its slot.
+auto_reset: True
+ignore_terminations: False
+
+max_steps_per_rollout_epoch: 498
+# 498 = 6 * 83: validate_embodied_cfg requires a multiple of num_action_chunks (6).
+max_episode_steps: 498
+
+# Irrelevant here: CARLA resets by restarting the episode, so it ignores the reset-state pool.
+use_fixed_reset_state_ids: False
+use_ordered_reset_state_ids: False
+
+# RLinf's shaping for the manipulation envs; this env rewards from rlinf.envs.sim.carla.reward, so keep 1.0.
+use_rel_reward: False
+reward_coef: 1.0
+
+is_eval: False
+seed: 0
+# Overridden from the experiment config; validate_embodied_cfg ties it to total_num_envs // env_world_size.
+group_size: 1
+
+# --- CARLA server -----------------------------------------------------------
+# One server process per env worker, each pinned to its own GPU; off-screen CARLA cannot choose one.
+server_dir: ${oc.env:CARLA_SERVER_DIR}
+base_port: 2100
+# null -> worker i gets GPU i % total_num_processes; set only to pin a single-GPU smoke run.
+gpu: null
+
+# Epic, as in the Phase-1 probe, so the first throughput number stays comparable to that baseline.
+quality_level: Epic
+startup_timeout: 240.0
+
+# --- env --------------------------------------------------------------------
+# CARLA's synchronous mode rate; changing it changes what max_episode_steps means.
+fps: 20.0
+
+# 640x360: the model only sees the checkpoint's image_size, so a bigger render just costs a resize.
+image_width: 640
+image_height: 360
+
+# "control" -> [steer, throttle, brake]; "waypoints" is unimplemented and raises.
+action_mode: control
+
+# Off-route threshold in metres; a starting point to tune, with no published value to copy.
+max_lateral_offset_m: 2.0
+
+# Frames of history exposed as frame_history; 1 disables it and main_images stays single-frame.
+history_len: 1
+
+# One route, not the 80-file directory: it is what makes a group share an initial condition.
+# A directory would spread each group over 4 roads, so advantage would measure the road drawn.
+route_file: ${oc.env:CARLA_ROUTE_FILE}
+route_length_m: 200.0
+
+# --- reward -----------------------------------------------------------------
+# "dense": a pure 0/1 reward gives all-timeout groups zero advantage, i.e. a silent zero gradient.
+reward_mode: dense
+# null -> c = 1/max_episode_steps = 1/498, inside the design doc's 1/(3T) < c < 2/T window.
+time_cost: null
+
+video_cfg:
+  save_video: False
+  info_on_video: False
+  video_base_dir: ${runner.logger.log_path}/video/train

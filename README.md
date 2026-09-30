@@ -22,6 +22,8 @@
   <sub>RLinf: Reinforcement Learning Infrastructure for Embodied and Agentic AI</sub>
 </h1>
 
+> This repository adds a CARLA 0.9.16 environment and GRPO example to RLinf at commit `db66ac56`. See [RLinf + CARLA](examples/embodiment/carla/README.md). The original RLinf documentation follows below.
+
 RLinf is a flexible and scalable open-source RL infrastructure designed for Embodied and Agentic AI. The 'inf' in RLinf stands for `Infrastructure`, highlighting its role as a robust backbone for next-generation training. It also stands for `Infinite`, symbolizing the system’s support for open-ended learning, continuous generalization, and limitless possibilities in intelligence development.
 
 <div align="center">

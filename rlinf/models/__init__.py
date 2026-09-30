@@ -380,24 +380,27 @@ def get_model(cfg: DictConfig):
                 r=cfg.lora_rank,
                 lora_alpha=cfg.lora_rank,
                 lora_dropout=0.0,
-                target_modules=[
-                    "proj",
-                    "qkv",
-                    "fc1",
-                    "fc2",  # vision
-                    "q",
-                    "kv",
-                    "fc3",
-                    "out_proj",  # project
-                    "q_proj",
-                    "k_proj",
-                    "v_proj",
-                    "o_proj",
-                    "gate_proj",
-                    "up_proj",
-                    "down_proj",
-                    "lm_head",  # llm
-                ],
+                target_modules=cfg.get(
+                    "lora_target_modules",
+                    [
+                        "proj",
+                        "qkv",
+                        "fc1",
+                        "fc2",  # vision
+                        "q",
+                        "kv",
+                        "fc3",
+                        "out_proj",  # project
+                        "q_proj",
+                        "k_proj",
+                        "v_proj",
+                        "o_proj",
+                        "gate_proj",
+                        "up_proj",
+                        "down_proj",
+                        "lm_head",  # llm
+                    ],
+                ),
                 init_lora_weights="gaussian",
             )
             if SupportedModel(model_type) in (
@@ -414,7 +417,7 @@ def get_model(cfg: DictConfig):
         else:
             model = PeftModel.from_pretrained(model, cfg.lora_path, is_trainable=True)
 
-        if hasattr(model, "value_head"):
+        if getattr(model, "value_head", None) is not None:
             for param in model.value_head.parameters():
                 param.requires_grad = True
 

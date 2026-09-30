@@ -200,6 +200,16 @@ def unnormalize_actions_for_env(
         "q01": np.asarray(action_norm_stats["q01"], dtype=np.float32),
         "mask": np.asarray(action_norm_stats["mask"], dtype=bool),
     }
-    env_flat = baseframework.unnormalize_actions(flat, starvla_stats)
+    if flat.shape[-1] < 7:
+        # StarVLA's helper indexes LIBERO's gripper at column 6.
+        clipped = np.clip(flat, -1, 1)
+        env_flat = np.where(
+            starvla_stats["mask"],
+            0.5 * (clipped + 1) * (starvla_stats["q99"] - starvla_stats["q01"])
+            + starvla_stats["q01"],
+            clipped,
+        )
+    else:
+        env_flat = baseframework.unnormalize_actions(flat, starvla_stats)
     env_actions = np.asarray(env_flat, dtype=np.float32).reshape(actions.shape)
     return _gripper_mapping(env_actions, policy_setup=policy_setup)

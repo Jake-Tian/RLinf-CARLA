@@ -22,3 +22,11 @@ rlinf/envs/sim/maniskill/assets
 PKG-INFO
 *.egg-info/
 .claude/settings.json
+
+# CARLA local assets and run output
+/sft_data/
+/results/
+/wandb/
+*.pt
+*.pth
+*.ckpt

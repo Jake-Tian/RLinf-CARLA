@@ -1,0 +1,88 @@
+# CARLA SFT: Qwen3-VL-2B + MLP action head, LoRA, 640x360.
+# Modelled on starvla_qwenoft_robocasa365.yaml; deviations from it carry a line comment.
+# Launched by run_sft_carla.sbatch; data registered in starVLA_carla/data_config.py.
+
+run_id: starvla_carla_sft
+run_root_dir: results/Checkpoints_carla
+seed: 42
+wandb_entity: unused
+wandb_project: starVLA_carla
+is_debug: false
+version_id: "0.1"
+
+framework:
+  name: QwenOFT
+  qwenvl:
+    # The UniDriveVLA tree, not the HF cache, which holds an incomplete copy under the same name.
+    # Stock Qwen3-VL-2B needs no preparation: QwenOFT's action query is the existing "🔍" token.
+    base_vlm: /path/to/Qwen3-VL-2B-Instruct
+    attn_implementation: flash_attention_2
+  action_model:
+    action_model_type: MLP
+    # 3 control channels (steer, throttle, brake), not UniDriveVLA's 2-dim trajectory.
+    action_dim: 3
+    # Chunk length, kept in sync with data_config.ACTION_HORIZON by tests/test_sft_config_agreement.py.
+    action_horizon: 6
+    future_action_window_size: 5
+    past_action_window_size: 0
+
+datasets:
+  vla_data:
+    dataset_py: lerobot_datasets
+    # QwenOFT discretises state into the instruction; our state carries the action in 4:7.
+    include_state: false
+    data_root_dir: /path/to/carla-data
+    data_mix: carla_sft
+    action_type: delta_ee
+    sequential_step_sampling: false
+    # 4 x 8 GPUs = global batch 32; batch 4 fits the card at 640x360.
+    per_device_batch_size: 4
+    load_all_data_for_training: true
+    # (width, height), PIL's convention; QwenOFT also resizes to this at inference.
+    obs_image_size: [640, 360]
+    image_size: [640, 360]
+    state_action_dtype: float32
+    delete_pause_frame: false
+    video_backend: torchvision_av
+    num_workers: 4
+    action_horizon: 6
+    # Whole episodes, not steps: at 20 fps neighbouring steps of one route are near-identical.
+    holdout_episodes: 8
+    # "train" here; the eval script flips this to "eval" on the same YAML.
+    split: train
+
+trainer:
+  # 10 epochs, the upper bound of the schedule, chosen to match the reference run's exposure.
+  max_train_steps: 10190
+  num_warmup_steps: 200
+  # Every epoch (1019 steps): the epoch count can be chosen from evidence.
+  save_interval: 1019
+  eval_interval: 1000000
+  learning_rate:
+    base: 2.5e-05
+    # 2.0e-4, not the template's 1.0e-5: 1e-5 trains LoRA ~10x too slowly.
+    qwen_vl_interface: 2.0e-4
+    action_model: 1.0e-4
+  lr_scheduler_type: cosine_with_min_lr
+  scheduler_specific_kwargs:
+    min_lr: 1.0e-06
+  # MUST stay empty with lora_enable: a frozen path PREFIX also freezes its lora_A/lora_B.
+  freeze_modules: ''
+  lora_enable: true
+  lora_r: 64
+  lora_alpha: 128
+  lora_dropout: 0.05
+  lora_target_modules: [q_proj, k_proj, v_proj, o_proj]
+  loss_scale:
+    vla: 1.0
+    vlm: 0.1
+  max_grad_norm: 1.0
+  weight_decay: 0.0
+  logging_frequency: 5
+  gradient_clipping: 1.0
+  gradient_accumulation_steps: 1
+  optimizer:
+    name: AdamW
+    betas: [0.9, 0.95]
+    eps: 1.0e-08
+    weight_decay: 1.0e-08

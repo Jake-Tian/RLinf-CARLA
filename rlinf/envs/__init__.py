@@ -43,6 +43,7 @@ class SupportedEnvType(Enum):
     D4RL = "d4rl"
     DIFFUSION = "diffusion"
     POLARIS = "polaris"
+    CARLA = "carla"
 
     @classmethod
     def _missing_(cls, value: object) -> "SupportedEnvType | None":
@@ -106,6 +107,10 @@ def get_env_cls(env_type: str, env_cfg=None):
         from rlinf.envs.sim.libero.libero_env import LiberoEnv
 
         return LiberoEnv
+    elif env_type == SupportedEnvType.CARLA:
+        from rlinf.envs.sim.carla import CarlaEnv
+
+        return CarlaEnv
     elif env_type == SupportedEnvType.ROBOTWIN:
         from rlinf.envs.sim.robotwin.robotwin_env import RoboTwinEnv
 
