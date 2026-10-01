@@ -70,7 +70,15 @@ bash examples/embodiment/carla/train_grpo.sh sync
 RLINF_PACE_TO_STALENESS=1 bash examples/embodiment/carla/train_grpo.sh async-split
 ```
 
-用 `bash examples/embodiment/carla/train_grpo.sh async` 运行 actor 与 rollout 共卡的异步对照。不设置 `RLINF_PACE_TO_STALENESS` 即运行未配速路径。三个配置默认均为 8 GPU 布局，运行前核对各自的 `cluster.component_placement`。配置中的 `runner.max_steps: 5` 是短链检查值，正式训练前按预算调整 `runner.max_steps` 和 `runner.max_epochs`。同步和共卡异步配置默认 16 个环境，分卡异步默认 12 个环境，比较效率时应同时报告该差异。在 Slurm 等调度器上，申请与配置匹配的资源，并在作业中调用同一脚本。
+模式决定使用哪份配置，配速是仅影响异步 rollout 的独立开关：
+
+| 模式 | 配置 | GPU 布局（env / actor / rollout） | 训练环境数 |
+| --- | --- | --- | --- |
+| `sync` | `carla_grpo_starvla` | `0-3 / 4-7 / 4-7` | 16 |
+| `async` | `carla_grpo_starvla_async` | `0-3 / 4-7 / 4-7` | 16 |
+| `async-split` | `carla_grpo_starvla_async_split` | `0-2 / 3-5 / 6-7` | 12 |
+
+用 `bash examples/embodiment/carla/train_grpo.sh async` 运行 actor 与 rollout 共卡的异步对照。设置 `RLINF_PACE_TO_STALENESS=1` 启用异步配速，不设置则不配速。三个配置默认均为 8 GPU 布局。配置中的 `runner.max_steps: 5` 是短链检查值，正式训练前按预算调整 `runner.max_steps` 和 `runner.max_epochs`。比较吞吐量时，应同时报告环境数的差异。在 Slurm 等调度器上，申请与配置匹配的资源，并在作业中调用同一脚本。
 
 ## SFT 数据与模型
 

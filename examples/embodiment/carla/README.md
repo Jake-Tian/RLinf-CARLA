@@ -29,18 +29,15 @@ python examples/embodiment/carla/smoke_carla_env.py \
   --server-dir "$CARLA_SERVER_DIR" --steps 12
 ```
 
-RLinf 训练入口需要先连接到可用的 Ray 集群。按本机资源调整 `cluster.component_placement`、`total_num_envs` 和 batch size。仓库内的默认 placement 是原实验的 8 张 RTX 3090 布局。
+以下命令与仓库根目录的[中文训练说明](../../../README.zh-CN.md)一致。启动脚本会先做配置预检，再调用 RLinf。RLinf 优先连接已有 Ray 集群，没有时在本机初始化。默认配置使用 8 张 RTX 3090，调整 GPU 数量时需同时修改 placement、环境数和 batch size。
 
 ```bash
-python examples/embodiment/train_embodied_agent.py \
-  --config-name carla_grpo_starvla
+bash examples/embodiment/carla/train_grpo.sh sync
 
-RLINF_PACE_TO_STALENESS=1 python -m examples.embodiment.carla.async_grpo.train_async_carla \
-  --config-path "$PWD/examples/embodiment/config" \
-  --config-name carla_grpo_starvla_async_split
+RLINF_PACE_TO_STALENESS=1 bash examples/embodiment/carla/train_grpo.sh async-split
 ```
 
-另外有 `carla_grpo_starvla_async.yaml`，用于 actor 与 rollout 共卡的对照。异步入口沿用 RLinf 的 runner，只增加 GRPO group 完整性检查和可选的 rollout 配速。`RLINF_PACE_TO_STALENESS=1` 对应已测的配速版本，未设置时可复现未配速路径。
+`async` 模式用于 actor 与 rollout 共卡的异步对照。配速由 `RLINF_PACE_TO_STALENESS=1` 单独控制，不设置则不配速。三个模式及环境数见根目录说明。
 
 ## SFT 数据适配
 

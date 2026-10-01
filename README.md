@@ -70,7 +70,15 @@ bash examples/embodiment/carla/train_grpo.sh sync
 RLINF_PACE_TO_STALENESS=1 bash examples/embodiment/carla/train_grpo.sh async-split
 ```
 
-Use `bash examples/embodiment/carla/train_grpo.sh async` for the colocated actor/rollout comparison. Omit `RLINF_PACE_TO_STALENESS` to run without pacing. All three configurations assume eight GPUs by default. Check their `cluster.component_placement` settings before running. The configured `runner.max_steps: 5` is for a short integration run. Set `runner.max_steps` and `runner.max_epochs` for a longer run. The synchronous and colocated asynchronous configurations use 16 environments by default; the split-GPU configuration uses 12. Report this difference when comparing throughput. On Slurm or another scheduler, request resources appropriate for the selected configuration and invoke the same script inside the job.
+The mode selects a configuration; pacing is a separate switch that affects only asynchronous rollout:
+
+| Mode | Config | GPU placement (env / actor / rollout) | Train envs |
+| --- | --- | --- | --- |
+| `sync` | `carla_grpo_starvla` | `0-3 / 4-7 / 4-7` | 16 |
+| `async` | `carla_grpo_starvla_async` | `0-3 / 4-7 / 4-7` | 16 |
+| `async-split` | `carla_grpo_starvla_async_split` | `0-2 / 3-5 / 6-7` | 12 |
+
+Use `bash examples/embodiment/carla/train_grpo.sh async` for the colocated asynchronous comparison. Set `RLINF_PACE_TO_STALENESS=1` for paced asynchronous rollout, or leave it unset for unpaced rollout. All three configurations assume eight GPUs. The configured `runner.max_steps: 5` is for a short integration run. Set `runner.max_steps` and `runner.max_epochs` for a longer run. Report the differing environment counts when comparing throughput. On Slurm or another scheduler, request resources appropriate for the selected configuration and invoke the same script inside the job.
 
 ## SFT data and model
 
