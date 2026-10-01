@@ -60,32 +60,28 @@ Before a full run, use a short training run on the target route to check the env
 
 ## 4. Run GRPO
 
-RLinf connects to an existing Ray cluster when available and otherwise initializes Ray locally. All three configurations assume eight GPUs by default. Check their `cluster.component_placement` settings before running. The configured `runner.max_steps: 5` is for a short integration run. Set `runner.max_steps` and `runner.max_epochs` to match your training budget for a longer run.
+The [GRPO launch script](examples/embodiment/carla/train_grpo.sh) checks the asset paths, runs the configuration preflight, and starts the selected RLinf training entry point. Run it from the activated environment after exporting the variables in step 2. RLinf connects to an existing Ray cluster when available and otherwise initializes Ray locally.
 
 ```bash
 # Synchronous GRPO
-python examples/embodiment/train_embodied_agent.py \
-  --config-name carla_grpo_starvla
+bash examples/embodiment/carla/train_grpo.sh sync
 
 # Asynchronous GRPO with separate actor and rollout GPUs and pacing enabled
-RLINF_PACE_TO_STALENESS=1 python -m examples.embodiment.carla.async_grpo.train_async_carla \
-  --config-path "$PWD/examples/embodiment/config" \
-  --config-name carla_grpo_starvla_async_split
+RLINF_PACE_TO_STALENESS=1 bash examples/embodiment/carla/train_grpo.sh async-split
 ```
 
-Use `carla_grpo_starvla_async.yaml` with the same asynchronous entry point for the colocated actor/rollout comparison. Omit `RLINF_PACE_TO_STALENESS` to run without pacing. The synchronous and colocated asynchronous configurations use 16 environments by default; the split-GPU configuration uses 12. Report this difference when comparing throughput.
+Use `bash examples/embodiment/carla/train_grpo.sh async` for the colocated actor/rollout comparison. Omit `RLINF_PACE_TO_STALENESS` to run without pacing. All three configurations assume eight GPUs by default. Check their `cluster.component_placement` settings before running. The configured `runner.max_steps: 5` is for a short integration run. Set `runner.max_steps` and `runner.max_epochs` for a longer run. The synchronous and colocated asynchronous configurations use 16 environments by default; the split-GPU configuration uses 12. Report this difference when comparing throughput. On Slurm or another scheduler, request resources appropriate for the selected configuration and invoke the same script inside the job.
 
 ## SFT data and model
 
-[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) uses CARLA's BehaviorAgent to collect demonstrations and routes. This is a small-scale example:
+[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) uses CARLA's BehaviorAgent to collect demonstrations and routes. Its default is 80 episodes, compatible with the YAML's eight held-out episodes:
 
 ```bash
 python examples/embodiment/carla/collect_sft_data.py \
   --server-dir "$CARLA_SERVER_DIR" \
   --cache-dir /absolute/path/to/carla-cache \
   --out /absolute/path/to/carla-data \
-  --routes /absolute/path/to/carla-data/routes \
-  --num-routes 2 --episodes 2
+  --routes /absolute/path/to/carla-data/routes
 ```
 
 Copy [`data_config.py`](examples/embodiment/carla/starVLA_carla/data_config.py) into `examples/RLinfCARLA/CARLA/train_files/data_registry/` in the StarVLA checkout, and [`starvla_carla.yaml`](examples/embodiment/carla/starVLA_carla/starvla_carla.yaml) into its parent `train_files/` directory:
@@ -97,7 +93,7 @@ cp examples/embodiment/carla/starVLA_carla/data_config.py "$SFT_DIR/data_registr
 cp examples/embodiment/carla/starVLA_carla/starvla_carla.yaml "$SFT_DIR/"
 ```
 
-Set `base_vlm` and `data_root_dir` in the copied YAML to local paths, then check the dataset:
+Set `base_vlm` and `data_root_dir` in the copied YAML to local paths, then check the dataset. If you collect fewer episodes, reduce `holdout_episodes` in the YAML accordingly:
 
 ```bash
 python examples/embodiment/carla/check_sft_dataset.py \
@@ -105,7 +101,13 @@ python examples/embodiment/carla/check_sft_dataset.py \
   --config "$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files/starvla_carla.yaml"
 ```
 
-After the check passes, train from the StarVLA checkout with `accelerate launch --config_file starVLA/config/deepseeds/deepspeed_zero2.yaml --num_processes 8 starVLA/training/train_starvla.py --config_yaml "$SFT_DIR/starvla_carla.yaml"`. Adjust the process count and YAML batch settings for your GPU count. If the SFT checkpoint lacks action-window fields, inspect it first with `--dry-run` in the [repair script](examples/embodiment/carla/repair_starvla_ckpt_config.py), apply the suggested repair, and set `CARLA_SFT_CHECKPOINT` to the checkpoint path. See the [CARLA subdirectory guide](examples/embodiment/carla/README.md) for more detail.
+Start SFT from the activated environment with the [SFT launch script](examples/embodiment/carla/train_sft.sh). It runs the dataset check before calling StarVLA's `accelerate` trainer:
+
+```bash
+bash examples/embodiment/carla/train_sft.sh
+```
+
+The script defaults to eight processes and writes under `CARLA_OUTPUT_DIR/sft`. Set `SFT_NUM_PROCESSES` and adjust the YAML batch settings for another GPU count. Set `STARVLA_DIR` and `CARLA_SFT_CONFIG` when using a different StarVLA checkout or YAML. If the SFT checkpoint lacks action-window fields, inspect it first with `--dry-run` in the [repair script](examples/embodiment/carla/repair_starvla_ckpt_config.py), apply the suggested repair, and set `CARLA_SFT_CHECKPOINT` to the checkpoint path. See the [CARLA subdirectory guide](examples/embodiment/carla/README.md) for more detail.
 
 ## Validation scope
 

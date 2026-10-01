@@ -60,32 +60,28 @@ python examples/embodiment/carla/smoke_carla_env.py \
 
 ## 4. 运行 GRPO
 
-RLinf 会优先连接已有 Ray 集群，没有时在本机初始化。三个配置默认均为 8 GPU 布局，运行前核对各自的 `cluster.component_placement`。配置中的 `runner.max_steps: 5` 是短链检查值；要正式训练，先根据训练预算调整 `runner.max_steps` 和 `runner.max_epochs`。
+[GRPO 启动脚本](examples/embodiment/carla/train_grpo.sh)会检查资产路径、运行配置预检，再调用相应的 RLinf 训练入口。激活训练环境并设置第 2 步的变量后运行。RLinf 会优先连接已有 Ray 集群，没有时在本机初始化。
 
 ```bash
 # 同步 GRPO
-python examples/embodiment/train_embodied_agent.py \
-  --config-name carla_grpo_starvla
+bash examples/embodiment/carla/train_grpo.sh sync
 
 # 异步 GRPO，actor 与 rollout 分卡，启用配速
-RLINF_PACE_TO_STALENESS=1 python -m examples.embodiment.carla.async_grpo.train_async_carla \
-  --config-path "$PWD/examples/embodiment/config" \
-  --config-name carla_grpo_starvla_async_split
+RLINF_PACE_TO_STALENESS=1 bash examples/embodiment/carla/train_grpo.sh async-split
 ```
 
-另有 `carla_grpo_starvla_async.yaml`，用于 actor 与 rollout 共卡的异步对照，可用同一异步入口选择。不设置 `RLINF_PACE_TO_STALENESS` 即运行未配速路径。同步和共卡异步配置默认 16 个环境，分卡异步默认 12 个环境，比较效率时应同时报告该差异。
+用 `bash examples/embodiment/carla/train_grpo.sh async` 运行 actor 与 rollout 共卡的异步对照。不设置 `RLINF_PACE_TO_STALENESS` 即运行未配速路径。三个配置默认均为 8 GPU 布局，运行前核对各自的 `cluster.component_placement`。配置中的 `runner.max_steps: 5` 是短链检查值，正式训练前按预算调整 `runner.max_steps` 和 `runner.max_epochs`。同步和共卡异步配置默认 16 个环境，分卡异步默认 12 个环境，比较效率时应同时报告该差异。在 Slurm 等调度器上，申请与配置匹配的资源，并在作业中调用同一脚本。
 
 ## SFT 数据与模型
 
-[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) 使用 CARLA BehaviorAgent 采集示范数据和 route。下面是小规模示例：
+[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) 使用 CARLA BehaviorAgent 采集示范数据和 route。默认采集 80 条 episode，满足 YAML 中保留 8 条 episode 的设置：
 
 ```bash
 python examples/embodiment/carla/collect_sft_data.py \
   --server-dir "$CARLA_SERVER_DIR" \
   --cache-dir /absolute/path/to/carla-cache \
   --out /absolute/path/to/carla-data \
-  --routes /absolute/path/to/carla-data/routes \
-  --num-routes 2 --episodes 2
+  --routes /absolute/path/to/carla-data/routes
 ```
 
 将 [`data_config.py`](examples/embodiment/carla/starVLA_carla/data_config.py) 放到 StarVLA checkout 的 `examples/RLinfCARLA/CARLA/train_files/data_registry/`，将 [`starvla_carla.yaml`](examples/embodiment/carla/starVLA_carla/starvla_carla.yaml) 放到上一级 `train_files/`。可按下列命令复制：
@@ -97,7 +93,7 @@ cp examples/embodiment/carla/starVLA_carla/data_config.py "$SFT_DIR/data_registr
 cp examples/embodiment/carla/starVLA_carla/starvla_carla.yaml "$SFT_DIR/"
 ```
 
-把 YAML 中的 `base_vlm` 和 `data_root_dir` 改为本机路径，然后检查数据：
+把 YAML 中的 `base_vlm` 和 `data_root_dir` 改为本机路径，然后检查数据。若采集较少的 episode，也要相应降低 YAML 中的 `holdout_episodes`：
 
 ```bash
 python examples/embodiment/carla/check_sft_dataset.py \
@@ -105,7 +101,13 @@ python examples/embodiment/carla/check_sft_dataset.py \
   --config "$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files/starvla_carla.yaml"
 ```
 
-检查通过后，在 StarVLA checkout 内用 `accelerate launch --config_file starVLA/config/deepseeds/deepspeed_zero2.yaml --num_processes 8 starVLA/training/train_starvla.py --config_yaml "$SFT_DIR/starvla_carla.yaml"` 训练。请按实际 GPU 数调整进程数和 YAML 中的 batch 配置。SFT checkpoint 如果缺少 action-window 字段，先用 [修复脚本](examples/embodiment/carla/repair_starvla_ckpt_config.py) 的 `--dry-run` 检查，再按提示修复，最后将 checkpoint 设为 `CARLA_SFT_CHECKPOINT`。细节见 [CARLA 子目录说明](examples/embodiment/carla/README.md)。
+在已激活的训练环境中调用 [SFT 启动脚本](examples/embodiment/carla/train_sft.sh)。它会先检查数据集，再调用 StarVLA 的 `accelerate` 训练入口：
+
+```bash
+bash examples/embodiment/carla/train_sft.sh
+```
+
+脚本默认使用 8 个进程，结果写入 `CARLA_OUTPUT_DIR/sft`。使用其他 GPU 数量时，设置 `SFT_NUM_PROCESSES` 并调整 YAML 中的 batch 配置。使用其他 StarVLA checkout 或 YAML 时，设置 `STARVLA_DIR` 和 `CARLA_SFT_CONFIG`。SFT checkpoint 如果缺少 action-window 字段，先用 [修复脚本](examples/embodiment/carla/repair_starvla_ckpt_config.py) 的 `--dry-run` 检查，再按提示修复，最后将 checkpoint 设为 `CARLA_SFT_CHECKPOINT`。细节见 [CARLA 子目录说明](examples/embodiment/carla/README.md)。
 
 ## 验证范围
 
