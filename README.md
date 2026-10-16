@@ -124,3 +124,7 @@ The original experiments ran synchronous and asynchronous training on eight RTX 
 ## Origin and licenses
 
 This repository retains upstream RLinf's [Apache-2.0 license](LICENSE). Obtain the CARLA server, assets, and StarVLA under their respective licenses. Their code and model weights are not redistributed as repository files. The original upstream RLinf Chinese README is preserved as [README.upstream.zh-CN.md](README.upstream.zh-CN.md).
+
+## Qwen3.5 CARLA 全参数代码备份
+
+最新已验证源码、配置、依赖版本与结果摘要见[2026-10-17代码备份](backups/qwen35_fullparam_20261017/README.md)。该快照用于恢复实验代码，包含async与colocate入口，暂未替换下文原有默认安装流程。

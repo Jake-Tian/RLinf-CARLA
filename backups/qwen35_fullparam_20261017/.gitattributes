@@ -1,0 +1,4 @@
+# Keep immutable source snapshots and unified-diff context byte-for-byte.
+source/** -whitespace
+dependencies/autopilot_source/** -whitespace
+patches/*.patch -whitespace

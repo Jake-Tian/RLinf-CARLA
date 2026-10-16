@@ -1,0 +1,186 @@
+{
+  "source": "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_r3hour_20261017_003129/quick_L_18959",
+  "runner_rounds_completed": 3,
+  "steady": {
+    "iteration_mean_s": 246.1621322631836,
+    "iteration_std_s": 4.670329372718857,
+    "new_chunks_per_second": 0.7799737442748655,
+    "valid_chunks_per_second": 0.7799737442748655,
+    "actual_optimizer_updates_per_second": 0.12999562404581094,
+    "gpu_seconds_per_valid_chunk": 10.256755510965982,
+    "new_chunks": 384,
+    "valid_chunks": 384,
+    "optimizer_updates": 64,
+    "phase_mean_s": {
+      "time/actor_training": 177.47803497314453,
+      "time/rollout/predict": 164.95875549316406,
+      "time/rollout/generate_one_epoch": 195.47795867919922,
+      "time/env/env_interact_step": 17.21811866760254,
+      "time/actor/wait_for_rollout_store_ready": 46.71278190612793
+    }
+  },
+  "gpu_steady": {
+    "window_start_epoch": 1792169054.6712034,
+    "window_end_epoch": 1792169547.0850754,
+    "window_definition": "exclude first 1 completed rounds; integrate through final completed round",
+    "roles": {
+      "all8": {
+        "gpu_count": 8,
+        "physical_gpu_indices": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "mean_util_pct": 78.80710660828717,
+        "mean_power_w": 216.026039228579,
+        "zero_util_sample_time_pct": 17.123460520944164,
+        "idle_equivalent_gpu_s_per_iteration": 417.35102609042906
+      },
+      "shared_env_rollout": {
+        "gpu_count": 2,
+        "physical_gpu_indices": [
+          0,
+          1
+        ],
+        "mean_util_pct": 54.26551595404274,
+        "mean_power_w": 210.14349980859959,
+        "zero_util_sample_time_pct": 40.253130783398674,
+        "idle_equivalent_gpu_s_per_iteration": 225.1619622141878
+      },
+      "shared_env_actor": {
+        "gpu_count": 4,
+        "physical_gpu_indices": [
+          2,
+          3,
+          4,
+          5
+        ],
+        "mean_util_pct": 83.82704283210442,
+        "mean_power_w": 202.2971103987683,
+        "zero_util_sample_time_pct": 11.897739963661548,
+        "idle_equivalent_gpu_s_per_iteration": 159.24678485801255
+      },
+      "actor_only": {
+        "gpu_count": 1,
+        "physical_gpu_indices": [
+          6
+        ],
+        "mean_util_pct": 91.21522883631684,
+        "mean_power_w": 198.8034795246162,
+        "zero_util_sample_time_pct": 5.2538877337993934,
+        "idle_equivalent_gpu_s_per_iteration": 21.62478001096375
+      },
+      "shared_actor_rollout": {
+        "gpu_count": 1,
+        "physical_gpu_indices": [
+          7
+        ],
+        "mean_util_pct": 95.40242079347736,
+        "mean_power_w": 299.92939309174216,
+        "zero_util_sample_time_pct": 3.636575012310373,
+        "idle_equivalent_gpu_s_per_iteration": 11.317499007264887
+      }
+    }
+  },
+  "counter_audit": {
+    "method": "difference of actual pre-training counters; final stable publication supplies final end counter; DP ranks are not summed",
+    "total_actual_updates": 96,
+    "differences_from_adapter_expected": {}
+  },
+  "first_update_audits": [
+    {
+      "rank": 0,
+      "initial_logprob_max_abs": 0.0,
+      "missing_gradients": [],
+      "full_postclip_norm": 2.0000000037252903,
+      "gradient_energy_by_role": {
+        "vision": 3295.472412109375,
+        "language": 153383.453125,
+        "projection_or_other": 0.0
+      },
+      "optimizer_state_dtypes": {
+        "torch.float32": 1234
+      }
+    },
+    {
+      "rank": 1,
+      "initial_logprob_max_abs": 0.0,
+      "missing_gradients": [],
+      "full_postclip_norm": 2.0000000037252903,
+      "gradient_energy_by_role": {
+        "vision": 3295.472412109375,
+        "language": 153383.453125,
+        "projection_or_other": 0.0
+      },
+      "optimizer_state_dtypes": {
+        "torch.float32": 1234
+      }
+    },
+    {
+      "rank": 2,
+      "initial_logprob_max_abs": 0.0,
+      "missing_gradients": [],
+      "full_postclip_norm": 2.0000000037252903,
+      "gradient_energy_by_role": {
+        "vision": 3295.472412109375,
+        "language": 153383.453125,
+        "projection_or_other": 0.0
+      },
+      "optimizer_state_dtypes": {
+        "torch.float32": 1234
+      }
+    },
+    {
+      "rank": 3,
+      "initial_logprob_max_abs": 0.0,
+      "missing_gradients": [],
+      "full_postclip_norm": 2.0000000037252903,
+      "gradient_energy_by_role": {
+        "vision": 3295.472412109375,
+        "language": 153383.453125,
+        "projection_or_other": 0.0
+      },
+      "optimizer_state_dtypes": {
+        "torch.float32": 1234
+      }
+    },
+    {
+      "rank": 4,
+      "initial_logprob_max_abs": 0.0,
+      "missing_gradients": [],
+      "full_postclip_norm": 2.0000000037252903,
+      "gradient_energy_by_role": {
+        "vision": 3295.472412109375,
+        "language": 153383.453125,
+        "projection_or_other": 0.0
+      },
+      "optimizer_state_dtypes": {
+        "torch.float32": 1234
+      }
+    },
+    {
+      "rank": 5,
+      "initial_logprob_max_abs": 0.0,
+      "missing_gradients": [],
+      "full_postclip_norm": 2.0000000037252903,
+      "gradient_energy_by_role": {
+        "vision": 3295.472412109375,
+        "language": 153383.453125,
+        "projection_or_other": 0.0
+      },
+      "optimizer_state_dtypes": {
+        "torch.float32": 1234
+      }
+    }
+  ],
+  "finite_scalar_values": true,
+  "offline_wandb_files": [
+    "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_r3hour_20261017_003129/quick_L_18959/wandb/wandb/offline-run-20261017_003342-hbnbexn9/run-hbnbexn9.wandb"
+  ],
+  "updates_per_second_change_vs_18911_pct": -4.8774362456265425
+}

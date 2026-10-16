@@ -1,0 +1,759 @@
+--- a/rlinf/config.py
++++ b/rlinf/config.py
+@@ -1018,11 +1018,11 @@
+     )
+     if not only_eval and algorithm_cfg.get("recompute_logprobs", False):
+         # The actor-side recompute reshapes logprobs by ``action_dim`` to report the
+-        # gap per action, which assumes the OpenVLA family's tokenized action layout.
++        # gap per action, requiring a tokenized action layout ending in action_dim.
+         # GR00T needs no recompute: it already rescores inside its training forward.
+-        assert model_type in [SupportedModel.OPENVLA, SupportedModel.OPENVLA_OFT], (
++        assert model_type.value in ["openvla", "openvla_oft", "alpamayo2"], (
+             f"algorithm.recompute_logprobs supports "
+-            f"{[SupportedModel.OPENVLA.value, SupportedModel.OPENVLA_OFT.value]}, "
++            f"{['openvla', 'openvla_oft', 'alpamayo2']}, "
+             f"got '{model_cfg.model_type}'."
+         )
+         assert algorithm_cfg.get("adv_type", None) != "opd", (
+--- a/rlinf/data/schema/embodied_types.py
++++ b/rlinf/data/schema/embodied_types.py
+@@ -108,13 +108,17 @@
+             else None
+         )
+ 
+-        return {
++        prepared = {
+             "main_images": image_tensor,  # [N_ENV, H, W, C]
+             "wrist_images": wrist_image_tensor,  # [N_ENV, H, W, C] or [N_ENV, N_IMG, H, W, C]
+             "extra_view_images": extra_view_image_tensor,  # [N_ENV, N_IMG, H, W, C]
+             "states": states,
+             "task_descriptions": task_descriptions,
+         }
++        for key in ("image_frames", "ego_history_xyz", "ego_history_rot"):
++            if key in obs:
++                prepared[key] = obs[key]
++        return prepared
+ 
+     @staticmethod
+     def merge_env_outputs(env_outputs: list[dict]) -> dict[str, Any]:
+--- a/rlinf/envs/sim/carla/__init__.py
++++ b/rlinf/envs/sim/carla/__init__.py
+@@ -1,17 +1,3 @@
+-# Copyright 2026 The RLinf-CARLA Contributors.
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     https://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-
+ """CARLA integration for RLinf; re-exported for RLinf's ``rlinf.envs.sim.carla`` import."""
+ 
+ from .env import CarlaEnv
+--- a/rlinf/envs/sim/carla/env.py
++++ b/rlinf/envs/sim/carla/env.py
+@@ -1,17 +1,3 @@
+-# Copyright 2026 The RLinf-CARLA Contributors.
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     https://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-
+ """CarlaEnv: the RLinf vector-env contract (reset/step/chunk_step) that RLinf calls."""
+ 
+ from __future__ import annotations
+@@ -24,9 +10,10 @@
+ import numpy as np
+ import torch
+ 
++# Relative: ``rlinf_carla`` locally, ``rlinf.envs.sim.carla`` on the cluster.
+ from .reward import RewardConfig
+ from .server import ServerConfig
+-from .worker import CarlaEnvWorker, CarlaWorkerConfig
++from .worker import CarlaWorkerConfig, CarlaEnvWorker
+ 
+ 
+ def resolve_worker_gpu(worker_info, worker_index: int, total_num_processes: int) -> int:
+@@ -93,6 +80,11 @@
+     # -- construction ------------------------------------------------------
+ 
+     def _init_workers(self) -> None:
++        worker_class = CarlaEnvWorker
++        if self.cfg.get("action_mode", "control") == "accel_curvature":
++            from alpamayo_carla.environment import AlpamayoCarlaWorker
++
++            worker_class = AlpamayoCarlaWorker
+         # `.get`, not attribute access: a plain-dict caller has no `cfg.server_dir`.
+         server_dir = self.cfg.get("server_dir")
+         if not server_dir:
+@@ -132,7 +124,7 @@
+                 route_length_m=float(self.cfg.get("route_length_m", 200.0)),
+                 seed=self.seed_offset,
+             )
+-            worker = CarlaEnvWorker(worker_cfg, i, self.logdir)
++            worker = worker_class(worker_cfg, i, self.logdir)
+             worker.start()
+             self.workers.append(worker)
+             self._history.append(deque(maxlen=max(1, self.history_len)))
+@@ -147,7 +139,6 @@
+ 
+     def __enter__(self) -> CarlaEnv:
+         return self
+-
+     def __exit__(self, *exc) -> None:
+         self.close()
+ 
+@@ -209,9 +200,7 @@
+             "return": self.returns.copy(),
+             "episode_len": self._elapsed_steps.copy(),
+         }
+-        lens = np.where(
+-            self.success_once, self.success_episode_len, self._elapsed_steps
+-        )
++        lens = np.where(self.success_once, self.success_episode_len, self._elapsed_steps)
+         episode_info["reward"] = episode_info["return"] / np.maximum(lens, 1)
+         infos["episode"] = _to_tensor(episode_info)
+         return infos
+@@ -237,6 +226,9 @@
+             "task_descriptions": [o["task_descriptions"] for o in obs_list],
+         }
+         # wrist_images is absent on purpose; see CarlaEnvWorker._obs.
++        for key in ("image_frames", "ego_history_xyz", "ego_history_rot"):
++            if key in obs_list[0]:
++                obs[key] = _to_tensor(np.stack([o[key] for o in obs_list]))
+ 
+         if self.history_len > 1:
+             # Opt-in: chunk_step would otherwise append the final frame twice.
+--- a/rlinf/envs/sim/carla/reward.py
++++ b/rlinf/envs/sim/carla/reward.py
+@@ -1,17 +1,3 @@
+-# Copyright 2026 The RLinf-CARLA Contributors.
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     https://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-
+ """Reward for the CARLA GRPO runs; Bench2Drive's SR as the terminal signal, not its DS."""
+ 
+ from __future__ import annotations
+--- a/rlinf/envs/sim/carla/route.py
++++ b/rlinf/envs/sim/carla/route.py
+@@ -1,17 +1,3 @@
+-# Copyright 2026 The RLinf-CARLA Contributors.
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     https://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-
+ """Route representation and progress-along-route; pure geometry, no CARLA dependency."""
+ 
+ from __future__ import annotations
+--- a/rlinf/envs/sim/carla/server.py
++++ b/rlinf/envs/sim/carla/server.py
+@@ -1,17 +1,3 @@
+-# Copyright 2026 The RLinf-CARLA Contributors.
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     https://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-
+ """CARLA server process lifecycle.
+ 
+ One CarlaServer per env worker.  A server renders on card 0 unless
+@@ -68,7 +54,9 @@
+ 
+     quality_level: str = "Epic"
+ 
+-    cache_dir: str = field(default_factory=lambda: os.path.expanduser("~/carla_cache"))
++    cache_dir: str = field(
++        default_factory=lambda: os.path.expanduser("~/carla_cache")
++    )
+     startup_timeout: float = 240.0
+ 
+     def port_for(self, worker_index: int) -> int:
+@@ -178,11 +166,8 @@
+         self._fh.write(f"# CUDA_VISIBLE_DEVICES={env.get('CUDA_VISIBLE_DEVICES')}\n")
+         self._fh.flush()
+         self.proc = subprocess.Popen(
+-            cmd,
+-            cwd=self.cfg.server_dir,
+-            env=env,
+-            stdout=self._fh,
+-            stderr=subprocess.STDOUT,
++            cmd, cwd=self.cfg.server_dir, env=env,
++            stdout=self._fh, stderr=subprocess.STDOUT,
+             start_new_session=True,  # so stop() can signal the whole tree
+         )
+ 
+@@ -248,11 +233,8 @@
+         default = os.path.join(self.cfg.server_dir, "CarlaUE4", "Saved", "Logs")
+         try:
+             cands = sorted(
+-                (
+-                    os.path.join(default, f)
+-                    for f in os.listdir(default)
+-                    if f.endswith(".log")
+-                ),
++                (os.path.join(default, f) for f in os.listdir(default)
++                 if f.endswith(".log")),
+                 key=os.path.getmtime,
+             )
+         except OSError:
+--- a/rlinf/envs/sim/carla/worker.py
++++ b/rlinf/envs/sim/carla/worker.py
+@@ -1,17 +1,3 @@
+-# Copyright 2026 The RLinf-CARLA Contributors.
+-#
+-# Licensed under the Apache License, Version 2.0 (the "License");
+-# you may not use this file except in compliance with the License.
+-# You may obtain a copy of the License at
+-#
+-#     https://www.apache.org/licenses/LICENSE-2.0
+-#
+-# Unless required by applicable law or agreed to in writing, software
+-# distributed under the License is distributed on an "AS IS" BASIS,
+-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-# See the License for the specific language governing permissions and
+-# limitations under the License.
+-
+ """One CARLA environment: one server process, one client connection, one ego."""
+ 
+ from __future__ import annotations
+@@ -19,10 +5,12 @@
+ import math
+ import os
+ import queue
++import time
+ from dataclasses import dataclass, field
+ 
+ import numpy as np
+ 
++# Relative: ``rlinf_carla`` locally, ``rlinf.envs.sim.carla`` on the cluster.
+ from .reward import CarlaReward, EpisodeState, Outcome, RewardConfig
+ from .route import Route, straight_route
+ from .server import CarlaServer, ServerConfig
+@@ -79,7 +67,7 @@
+     spawn_index: int | None = None
+ 
+     def __post_init__(self) -> None:
+-        if self.action_mode not in ("control", "waypoints"):
++        if self.action_mode not in ("control", "waypoints", "accel_curvature"):
+             raise ValueError(f"unknown action_mode {self.action_mode!r}")
+         if self.action_mode == "waypoints":
+             raise NotImplementedError(
+@@ -90,6 +78,11 @@
+ 
+ class CarlaEnvWorker:
+     """A single driving environment. Not thread-safe; one process each."""
++
++    #: Start attempts before giving up; see ``start`` for what gets retried.
++    START_ATTEMPTS = 3
++    #: Seconds to wait before a retry, multiplied by the attempt number.
++    START_RETRY_WAIT_S = 15.0
+ 
+     def __init__(self, cfg: CarlaWorkerConfig, worker_index: int, logdir: str) -> None:
+         self.cfg = cfg
+@@ -123,23 +116,54 @@
+     # -- lifecycle ---------------------------------------------------------
+ 
+     def start(self) -> None:
+-        """Bring up the server and connect; separate from __init__ so construction is cheap."""
++        """Bring up the server and connect; separate from __init__ so construction is cheap.
++
++        A server that dies mid-startup is restarted rather than fatal. With a
++        dozen servers coming up at once one can lose its RenderThread and crash
++        (job 18408: UE GameThread waited 60 s for the RenderThread, Signal 11),
++        and since there is one server per env, an abort costs the whole job.
++        ``server.start()`` itself is outside the retry: its failure names a
++        foreign listener on the port, which a restart cannot clear.
++        """
+         import carla
+ 
+-        self.server.start()
+-        ok, why = self.server.wait_ready()
+-        if not ok:
+-            raise RuntimeError(
+-                f"CARLA server for worker {self.worker_index} failed: {why}\n"
+-                f"{self.server.failure_report()}"
+-            )
+-
+-        self._client = carla.Client(self.cfg.host, self.server.port)
+-        self._client.set_timeout(60.0)
+-        self._world = self._client.get_world()
+-        self._map = self._world.get_map()
+-        self._spawn_points = self._map.get_spawn_points()
+-        self._apply_sync_settings()
++        for attempt in range(1, self.START_ATTEMPTS + 1):
++            self.server.start()
++            try:
++                ok, why = self.server.wait_ready()
++                if not ok:
++                    raise RuntimeError(
++                        f"CARLA server for worker {self.worker_index} failed: {why}\n"
++                        f"{self.server.failure_report()}"
++                    )
++
++                self._client = carla.Client(self.cfg.host, self.server.port)
++                self._client.set_timeout(60.0)
++                self._world = self._client.get_world()
++                self._map = self._world.get_map()
++                self._spawn_points = self._map.get_spawn_points()
++                self._apply_sync_settings()
++                return
++            except Exception as exc:  # noqa: BLE001 -- re-raised on the last attempt
++                if attempt == self.START_ATTEMPTS:
++                    self._discard_partial_start()
++                    raise
++                print(
++                    f"[carla worker {self.worker_index}] start attempt "
++                    f"{attempt}/{self.START_ATTEMPTS} failed: {exc!r}\n"
++                    f"{self.server.tail()}",
++                    flush=True,
++                )
++                self._discard_partial_start()
++                time.sleep(self.START_RETRY_WAIT_S * attempt)
++
++    def _discard_partial_start(self) -> None:
++        """Drop half-open client state and stop the server; a retry needs both."""
++        self._client = None
++        self._world = None
++        self._map = None
++        self._spawn_points = []
++        self.server.stop()
+ 
+     def close(self) -> None:
+         self._destroy_actors()
+@@ -228,7 +252,9 @@
+                     f"generate them before starting the env"
+                 )
+             return files[int(self._rng.integers(len(files)))]
+-        raise RuntimeError(f"route_file {source!r} is neither a file nor a directory")
++        raise RuntimeError(
++            f"route_file {source!r} is neither a file nor a directory"
++        )
+ 
+     def _pick_spawn_point(self) -> "object":
+         if not self._spawn_points:
+@@ -292,12 +318,8 @@
+ 
+     def _on_collision(self, event) -> None:
+         other = event.other_actor
+-        kind = (
+-            "walker"
+-            if other is not None and "walker" in other.type_id
+-            else (
+-                "vehicle" if other is not None and "vehicle" in other.type_id else None
+-            )
++        kind = "walker" if other is not None and "walker" in other.type_id else (
++            "vehicle" if other is not None and "vehicle" in other.type_id else None
+         )
+         self._collisions.append(_COLLISION_KINDS.get(kind, "collisions_layout"))
+ 
+@@ -322,9 +344,7 @@
+         self._elapsed += 1
+ 
+         self._prev_steer, self._prev_throttle, self._prev_brake = (
+-            steer,
+-            throttle,
+-            brake,
++            steer, throttle, brake,
+         )
+ 
+         self._eps_state.infractions.update(self._collisions)
+@@ -348,9 +368,8 @@
+         terminated = outcome in (Outcome.SUCCESS, Outcome.CRASH)
+         truncated = timed_out and not terminated
+ 
+-        reward = self.reward.step(
+-            rc, outcome if (terminated or truncated) else Outcome.RUNNING
+-        )
++        reward = self.reward.step(rc, outcome if (terminated or truncated)
++                                  else Outcome.RUNNING)
+         info = {
+             "route_completion": rc,
+             "outcome": outcome.value,
+@@ -404,6 +423,8 @@
+         speed = math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z)
+         # Rotate into the ego frame, so the vector is heading-independent.
+         cy, sy = math.cos(-yaw), math.sin(-yaw)
++        v_long = v.x * cy - v.y * sy
++        v_lat = v.x * sy + v.y * cy
+         a_long = acc.x * cy - acc.y * sy
+         a_lat = acc.x * sy + acc.y * cy
+ 
+@@ -447,7 +468,10 @@
+         """Navigation command rather than a language task."""
+         if self.route is None:
+             return "drive"
+-        return f"follow the route ({self.route.length_m:.0f} m), keep to the lane"
++        return (
++            f"follow the route ({self.route.length_m:.0f} m), "
++            f"keep to the lane"
++        )
+ 
+     def _obs(self, frame: int) -> dict:
+         image = self._sync_image(frame)
+--- a/rlinf/hybrid_engines/fsdp/strategy/fsdp2.py
++++ b/rlinf/hybrid_engines/fsdp/strategy/fsdp2.py
+@@ -19,6 +19,7 @@
+ import torch.nn as nn
+ from torch.distributed.device_mesh import DeviceMesh
+ from torch.optim import Optimizer
++from torch.distributed.tensor import DTensor
+ 
+ from rlinf.config import torch_dtype_from_precision
+ from rlinf.hybrid_engines.fsdp import (
+@@ -169,9 +170,15 @@
+         Returns:
+             - float: The total norm of the gradients before clipping.
+         """
++        parameters = list(model.parameters())
++        shard_group = None
++        for parameter in parameters:
++            if isinstance(parameter.grad, DTensor):
++                shard_group = parameter.grad.device_mesh["fsdp"].get_group()
++                break
+         grad_norm = get_grad_norm(
+-            model.parameters(),
+-            dp_group=self._dp_group,
++            parameters,
++            dp_group=shard_group,
+             norm_type=norm_type,
+         )
+         clip_grad_by_total_norm_(
+--- a/rlinf/hybrid_engines/fsdp/utils.py
++++ b/rlinf/hybrid_engines/fsdp/utils.py
+@@ -722,7 +722,7 @@
+ 
+     # Grads.
+     grads = [
+-        to_local_if_dtensor(p.grad.detach()).to(dtype)
++        to_local_if_dtensor(p.grad.detach())
+         for p in parameters
+         if p.grad is not None
+     ]
+@@ -732,7 +732,7 @@
+ 
+     if clip_coeff < 1.0:
+         for g in grads:
+-            g.mul_(clip_coeff)
++            g.copy_(g.to(dtype).mul_(clip_coeff))
+ 
+ 
+ @torch.no_grad()
+--- a/rlinf/models/__init__.py
++++ b/rlinf/models/__init__.py
+@@ -356,6 +356,15 @@
+ _register_builtin_models()
+ 
+ 
++def _build_alpamayo2(cfg, torch_dtype):
++    from alpamayo_carla.policy import get_model
++
++    return get_model(cfg, torch_dtype)
++
++
++register_model("alpamayo2", _build_alpamayo2, category="embodied")
++
++
+ def get_model(cfg: DictConfig):
+     model_type = str(cfg.model_type)
+     model_builder = _MODEL_REGISTRY.get(model_type)
+@@ -380,27 +389,24 @@
+                 r=cfg.lora_rank,
+                 lora_alpha=cfg.lora_rank,
+                 lora_dropout=0.0,
+-                target_modules=cfg.get(
+-                    "lora_target_modules",
+-                    [
+-                        "proj",
+-                        "qkv",
+-                        "fc1",
+-                        "fc2",  # vision
+-                        "q",
+-                        "kv",
+-                        "fc3",
+-                        "out_proj",  # project
+-                        "q_proj",
+-                        "k_proj",
+-                        "v_proj",
+-                        "o_proj",
+-                        "gate_proj",
+-                        "up_proj",
+-                        "down_proj",
+-                        "lm_head",  # llm
+-                    ],
+-                ),
++                target_modules=list(cfg.get("lora_target_modules", [
++                    "proj",
++                    "qkv",
++                    "fc1",
++                    "fc2",  # vision
++                    "q",
++                    "kv",
++                    "fc3",
++                    "out_proj",  # project
++                    "q_proj",
++                    "k_proj",
++                    "v_proj",
++                    "o_proj",
++                    "gate_proj",
++                    "up_proj",
++                    "down_proj",
++                    "lm_head",  # llm
++                ])),
+                 init_lora_weights="gaussian",
+             )
+             if SupportedModel(model_type) in (
+--- a/rlinf/models/embodiment/starvla/utils/action_space.py
++++ b/rlinf/models/embodiment/starvla/utils/action_space.py
+@@ -200,16 +200,6 @@
+         "q01": np.asarray(action_norm_stats["q01"], dtype=np.float32),
+         "mask": np.asarray(action_norm_stats["mask"], dtype=bool),
+     }
+-    if flat.shape[-1] < 7:
+-        # StarVLA's helper indexes LIBERO's gripper at column 6.
+-        clipped = np.clip(flat, -1, 1)
+-        env_flat = np.where(
+-            starvla_stats["mask"],
+-            0.5 * (clipped + 1) * (starvla_stats["q99"] - starvla_stats["q01"])
+-            + starvla_stats["q01"],
+-            clipped,
+-        )
+-    else:
+-        env_flat = baseframework.unnormalize_actions(flat, starvla_stats)
++    env_flat = baseframework.unnormalize_actions(flat, starvla_stats)
+     env_actions = np.asarray(env_flat, dtype=np.float32).reshape(actions.shape)
+     return _gripper_mapping(env_actions, policy_setup=policy_setup)
+--- a/rlinf/runners/async_ppo_embodied_runner.py
++++ b/rlinf/runners/async_ppo_embodied_runner.py
+@@ -272,11 +272,7 @@
+         # Let any in-flight non-blocking sync land before the workers go away.
+         self.drain_pending_rollout_weight_sync()
+ 
+-        self.metric_logger.finish()
+-
+-        self.stop_logging = True
+-        self.log_queue.join()
+-        self.log_thread.join(timeout=1.0)
++        self._finish_run()
+ 
+         self.env.stop().wait()
+         self.rollout.stop().wait()
+--- a/rlinf/runners/embodied_runner.py
++++ b/rlinf/runners/embodied_runner.py
+@@ -453,8 +453,8 @@
+         self.metric_logger.finish()
+ 
+         # Stop logging thread
++        self.log_queue.join()  # Wait for all queued logs to be processed
+         self.stop_logging = True
+-        self.log_queue.join()  # Wait for all queued logs to be processed
+         self.log_thread.join(timeout=1.0)
+ 
+     def _should_profile_step(self, step_idx: int) -> bool:
+--- a/rlinf/workers/actor/async_ppo_fsdp_worker.py
++++ b/rlinf/workers/actor/async_ppo_fsdp_worker.py
+@@ -84,6 +84,11 @@
+     async def recv_rollout_trajectories(self, input_channel):
+         # drain channel
+         if getattr(self, "_recv_queue", None) is None:
++            self._recv_slots = (
++                threading.BoundedSemaphore(self.rollout_store_size)
++                if os.environ.get("RLINF_ACTOR_CONSUME_ONCE", "0") == "1"
++                else None
++            )
+             self._recv_queue = queue.Queue()
+         if (
+             getattr(self, "_recv_rollout_thread", None) is None
+@@ -98,6 +103,8 @@
+ 
+     def _recv_rollout_thread_main(self, input_channel):
+         while not self.should_stop:
++            if self._recv_slots is not None and not self._recv_slots.acquire(timeout=0.1):
++                continue
+             trajectory: Trajectory = input_channel.get()
+             self.log_info(
+                 f"recv trajectory versions.shape={trajectory.versions.shape} "
+@@ -106,12 +113,19 @@
+             if trajectory.versions.min() < self.version - self.cfg.algorithm.get(
+                 "staleness_threshold", None
+             ):
++                if self._recv_slots is not None:
++                    self._recv_slots.release()
+                 continue
+             self._recv_queue.put(trajectory)
+ 
+     @Worker.timer("drain_received_trajectories")
+     def _drain_received_trajectories(self):
+         while True:
++            if (
++                os.environ.get("RLINF_ACTOR_CONSUME_ONCE", "0") == "1"
++                and len(self.rollout_store) >= self.rollout_store_size
++            ):
++                break
+             try:
+                 traj: Trajectory = self._recv_queue.get_nowait()
+                 self.log_info(
+@@ -122,6 +136,8 @@
+                 if traj.versions.min() < self.version - self.cfg.algorithm.get(
+                     "staleness_threshold", None
+                 ):
++                    if self._recv_slots is not None:
++                        self._recv_slots.release()
+                     continue
+                 min_v = float(traj.versions.min().item())
+                 mean_v = float(traj.versions.float().mean().item())
+@@ -139,9 +155,12 @@
+         while True:
+             self._drain_received_trajectories()
+             with self.worker_timer("remove_below"):
++                before = len(self.rollout_store)
+                 self.rollout_store.remove_below(
+                     self.version - self.cfg.algorithm.get("staleness_threshold", None)
+                 )
++                if self._recv_slots is not None and before > len(self.rollout_store):
++                    self._recv_slots.release(before - len(self.rollout_store))
+             if len(self.rollout_store) >= self.rollout_store_size:
+                 if on_policy_min_ratio <= 0.0:
+                     break
+@@ -165,6 +184,8 @@
+         torch.distributed.barrier()
+ 
+         rollout_batch = self.rollout_store.topn(self.rollout_store_size)
++        if self._recv_slots is not None:
++            self._recv_slots.release(len(rollout_batch))
+         version_metrics = self.rollout_store.get_metric()
+         self.log_info(f"rollout store version metrics={version_metrics}")
+ 
+@@ -374,6 +395,8 @@
+                         )
+ 
+                     model_kwargs = {}
++                    if self.cfg.actor.get("skip_fully_masked_samples", False):
++                        model_kwargs["loss_mask"] = loss_mask
+                     if SupportedModel(self.cfg.actor.model.model_type) in [
+                         SupportedModel.OPENVLA,
+                         SupportedModel.OPENVLA_OFT,
+@@ -399,6 +422,21 @@
+                             use_cache=False,
+                             **model_kwargs,
+                         )
++
++                    if self.optimizer_steps == 0 and os.environ.get("RLINF_FULL_AUDIT") == "1":
++                        import json
++                        from pathlib import Path
++                        if mb_idx == 0:
++                            def cpu_snapshot(value):
++                                if isinstance(value, dict):
++                                    return {key: cpu_snapshot(item) for key, item in value.items()}
++                                return value.detach().cpu() if torch.is_tensor(value) else value
++                            torch.save(cpu_snapshot({"forward_inputs": forward_inputs, "prev_logprobs": old_logprobs,
++                                "training_logprobs": out["logprobs"], "loss_mask": loss_mask, "versions": versions}),
++                                Path(str(self.cfg.runner.logger.log_path)) / f"first_microbatch_rank{self._rank}.pt")
++                        delta = (out["logprobs"].detach().float() - old_logprobs.float()).abs()
++                        with (Path(str(self.cfg.runner.logger.log_path)) / f"initial_logprob_rank{self._rank}.jsonl").open("a") as stream:
++                            stream.write(json.dumps({"max_abs": float(delta.max()), "mean_abs": float(delta.mean()), "behavior_versions": versions.unique().tolist(), "microbatch": mb_idx}) + "\n")
+ 
+                     if SupportedModel(self.cfg.actor.model.model_type) in [
+                         SupportedModel.GR00T,
+@@ -465,7 +503,8 @@
+                     metrics_data["actor/total_loss"] = float(loss.detach().item())
+                     append_to_dict(metrics, metrics_data)
+ 
+-                torch.cuda.empty_cache()
++                if self.cfg.actor.get("empty_cache_each_step", True):
++                    torch.cuda.empty_cache()
+ 
+                 grad_norm, lr_list = self.optimizer_step()
+                 extra_metrics = {
+--- a/rlinf/workers/rollout/hf/huggingface_worker.py
++++ b/rlinf/workers/rollout/hf/huggingface_worker.py
+@@ -554,6 +554,13 @@
+         result["expert_label_flag"] = bool(expert_label_flag)
+         return actions, result
+ 
++    async def _predict_rollout_actions_with_sync_guard(self, *args, **kwargs):
++        lock = getattr(self, "_full_weight_sync_lock", None)
++        if lock is None:
++            return self._predict_rollout_actions(*args, **kwargs)
++        async with lock:
++            return self._predict_rollout_actions(*args, **kwargs)
++
+     def _predict_rollout_actions(
+         self,
+         env_obs: dict[str, Any],
+@@ -690,7 +697,7 @@
+                     merge_fn=self._merge_obs_batches,
+                     infer_batch_size_fn=self._infer_env_batch_size,
+                 ).async_wait()
+-                actions, result = self._predict_rollout_actions(
++                actions, result = await self._predict_rollout_actions_with_sync_guard(
+                     env_output["obs"],
+                     final_obs=env_output.get("final_obs", None),
+                     rlt_switch_flags=env_output.get("rlt_switch_flags", None),
+@@ -741,7 +748,7 @@
+                 )
+                 continue
+ 
+-            actions, result = self._predict_rollout_actions(
++            actions, result = await self._predict_rollout_actions_with_sync_guard(
+                 env_output["obs"],
+                 final_obs=env_output.get("final_obs", None),
+                 rlt_switch_flags=env_output.get("rlt_switch_flags", None),
+@@ -819,7 +826,7 @@
+                     timeout_time=0.02,
+                     recv_queue_size=self.rollout_queue_size,
+                 )
+-                actions, _ = self._predict_rollout_actions(
++                actions, _ = await self._predict_rollout_actions_with_sync_guard(
+                     env_output["obs"],
+                     mode="eval",
+                     final_obs=env_output.get("final_obs", None),
+@@ -853,7 +860,7 @@
+                             merge_fn=self._merge_obs_batches,
+                             infer_batch_size_fn=self._infer_env_batch_size,
+                         ).async_wait()
+-                        actions, _ = self._predict_rollout_actions(
++                        actions, _ = await self._predict_rollout_actions_with_sync_guard(
+                             env_output["obs"],
+                             mode="eval",
+                             final_obs=env_output.get("final_obs", None),

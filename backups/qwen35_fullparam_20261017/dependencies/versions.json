@@ -1,0 +1,106 @@
+{
+  "distributions": [
+    {
+      "layer": "isolated_runtime",
+      "name": "huggingface_hub",
+      "version": "1.7.2"
+    },
+    {
+      "layer": "isolated_runtime",
+      "name": "tokenizers",
+      "version": "0.22.2"
+    },
+    {
+      "layer": "isolated_runtime",
+      "name": "transformers",
+      "version": "5.10.2"
+    },
+    {
+      "layer": "base_venv",
+      "name": "accelerate",
+      "version": "1.5.2"
+    },
+    {
+      "layer": "base_venv",
+      "name": "einops",
+      "version": "0.8.2"
+    },
+    {
+      "layer": "base_venv",
+      "name": "flash_attn",
+      "version": "2.8.3+cu12torch2.11cxx11abitrue"
+    },
+    {
+      "layer": "base_venv",
+      "name": "huggingface_hub",
+      "version": "0.36.2"
+    },
+    {
+      "layer": "base_venv",
+      "name": "hydra-core",
+      "version": "1.4.0.dev6"
+    },
+    {
+      "layer": "base_venv",
+      "name": "numpy",
+      "version": "1.26.4"
+    },
+    {
+      "layer": "base_venv",
+      "name": "omegaconf",
+      "version": "2.4.0.dev15"
+    },
+    {
+      "layer": "base_venv",
+      "name": "peft",
+      "version": "0.11.1"
+    },
+    {
+      "layer": "base_venv",
+      "name": "ray",
+      "version": "2.52.1"
+    },
+    {
+      "layer": "base_venv",
+      "name": "tensorboard",
+      "version": "2.21.0"
+    },
+    {
+      "layer": "base_venv",
+      "name": "tokenizers",
+      "version": "0.22.2"
+    },
+    {
+      "layer": "base_venv",
+      "name": "torch",
+      "version": "2.11.0+cu128"
+    },
+    {
+      "layer": "base_venv",
+      "name": "torchvision",
+      "version": "0.26.0+cu128"
+    },
+    {
+      "layer": "base_venv",
+      "name": "transformers",
+      "version": "4.57.6"
+    },
+    {
+      "layer": "base_venv",
+      "name": "triton",
+      "version": "3.6.0"
+    },
+    {
+      "layer": "base_venv",
+      "name": "wandb",
+      "version": "0.25.0"
+    }
+  ],
+  "fla_namespace_shim": "source/async/fla/__init__.py is the original namespace shim, not a complete FLA distribution",
+  "checkpoint_metadata_sha256": {
+    "config.json": "ea9f46e328d0ca3852a0ce9b7ab5125353fd3e24a39636aa182bcd7ce7d59630",
+    "reasoning_vla_config.json": "9d2d1bc3235cf10bcbdd47c8f64fae337308516e6551d1e0bea7101db11530f7",
+    "tokenizer_config.json": "7586e679ac644a26bd620f74562660610dee5c6e81599bd9a8bcae218d827d9a"
+  },
+  "checkpoint_weights_included": false
+}

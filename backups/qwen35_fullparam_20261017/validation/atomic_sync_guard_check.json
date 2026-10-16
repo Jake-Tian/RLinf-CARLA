@@ -1,0 +1,21 @@
+{
+  "passed": true,
+  "controls": [
+    {
+      "guarded": false,
+      "prediction": [
+        1,
+        0
+      ]
+    },
+    {
+      "guarded": true,
+      "prediction": [
+        1,
+        1
+      ]
+    }
+  ],
+  "transport_failure_propagated_and_lock_released": true,
+  "scope": "Actual candidate entry methods, real asyncio lock, simulated two-bucket apply. Does not verify real distributed communication."
+}

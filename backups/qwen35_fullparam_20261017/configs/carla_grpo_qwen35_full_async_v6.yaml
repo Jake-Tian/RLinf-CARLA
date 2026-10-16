@@ -1,0 +1,259 @@
+env:
+  train:
+    env_type: carla
+    total_num_envs: 12
+    auto_reset: false
+    ignore_terminations: false
+    max_steps_per_rollout_epoch: 128
+    max_episode_steps: 128
+    use_fixed_reset_state_ids: false
+    use_ordered_reset_state_ids: false
+    use_rel_reward: false
+    reward_coef: 1.0
+    is_eval: false
+    seed: 0
+    group_size: 2
+    server_dir: /research/d7/gds/yztian25/shared_assets/CARLA_0916
+    base_port: 3100
+    gpu: null
+    quality_level: Epic
+    startup_timeout: 240.0
+    fps: 20
+    image_width: 640
+    image_height: 360
+    action_mode: accel_curvature
+    max_lateral_offset_m: 5
+    history_len: 1
+    route_file: /research/d7/gds/yztian25/RLinf-CARLA/sft_data/routes/route_0039_from146_to14.txt
+    route_length_m: 200.0
+    reward_mode: dense
+    time_cost: null
+    video_cfg:
+      save_video: false
+      info_on_video: false
+      video_base_dir: ${oc.env:CARLA_OUTPUT_DIR}/video/train
+    rollout_epoch: 1
+    specific_reset_id: 0
+  eval:
+    env_type: carla
+    total_num_envs: 12
+    auto_reset: true
+    ignore_terminations: true
+    max_steps_per_rollout_epoch: 128
+    max_episode_steps: 128
+    use_fixed_reset_state_ids: false
+    use_ordered_reset_state_ids: false
+    use_rel_reward: false
+    reward_coef: 1.0
+    is_eval: true
+    seed: 0
+    group_size: 1
+    server_dir: /research/d7/gds/yztian25/shared_assets/CARLA_0916
+    base_port: 3300
+    gpu: null
+    quality_level: Epic
+    startup_timeout: 240.0
+    fps: 20
+    image_width: 640
+    image_height: 360
+    action_mode: accel_curvature
+    max_lateral_offset_m: 2.0
+    history_len: 1
+    route_file: /research/d7/gds/yztian25/RLinf-CARLA/sft_data/routes/route_0039_from146_to14.txt
+    route_length_m: 200.0
+    reward_mode: dense
+    time_cost: null
+    video_cfg:
+      save_video: false
+      info_on_video: false
+      video_base_dir: ${oc.env:CARLA_OUTPUT_DIR}/video/eval
+    rollout_epoch: 1
+    specific_reset_id: 0
+  group_name: EnvGroup
+  enable_offload: false
+actor:
+  model:
+    model_type: alpamayo2
+    model_path: /research/d7/gds/yztian25/Autopilot-VeRL-prefetch-video/models/alpamayo2-2B-sft
+    precision: fp32
+    action_dim: 2
+    num_action_chunks: 8
+    is_lora: false
+    lora_rank: 32
+    use_proprio: true
+    num_steps: 4
+    policy_setup: libero
+    unnorm_key: new_embodiment
+    action_stats_source: minmax
+    add_value_head: false
+    trust_remote_code: true
+    low_cpu_mem_usage: true
+    starvla:
+      ckpt_path: /research/d7/gds/yztian25/Autopilot-VeRL-prefetch-video/models/alpamayo2-2B-sft
+      enable_state_input: false
+      framework_name: QwenOFT
+      expected_action_dim: 2
+      expected_num_action_chunks: 8
+      expected_image_size:
+      - 640
+      - 360
+    lora_target_modules:
+    - qkv
+    - fc1
+    - fc2
+    - q
+    - kv
+    - fc3
+    - out_proj
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+    - lm_head
+    control_repeat: 2
+    temperature: 0.6
+    alpamayo_lora_rank: 8
+    rollout_micro_batch_size: 1
+    preprocess_on_gpu: true
+    reuse_frozen_vision: false
+    full_parameter_training: true
+    generation_use_cache: false
+    reuse_vision_within_generation: true
+  fsdp_config:
+    strategy: fsdp2
+    sharding_strategy: full_shard
+    gradient_checkpointing: true
+    cpu_offload: false
+    offload_pin_memory: false
+    reshard_after_forward: true
+    enable_gradient_accumulation: true
+    forward_prefetch: false
+    limit_all_gathers: false
+    backward_prefetch: null
+    use_orig_params: false
+    use_liger_kernel: false
+    mixed_precision:
+      param_dtype: bf16
+      reduce_dtype: fp32
+      buffer_dtype: bf16
+      cast_forward_inputs: false
+    amp_autocast:
+      enabled: false
+      precision: bf16
+    grad_scaler:
+      enabled: false
+      init_scale: null
+      growth_interval: null
+    wrap_policy:
+      transformer_layer_cls_to_wrap:
+      - Qwen3_5DecoderLayer
+      - Qwen3_5VisionBlock
+    gradient_checkpointing_use_reentrant: false
+    save_full_model_weights: false
+    replicate_frozen_params: false
+  group_name: ActorGroup
+  training_backend: fsdp
+  micro_batch_size: 1
+  global_batch_size: 6
+  seed: 42
+  enable_offload: false
+  optim:
+    lr: 1.0e-06
+    value_lr: 0.0001
+    adam_beta1: 0.9
+    adam_beta2: 0.95
+    adam_eps: 1.0e-05
+    weight_decay: 0.01
+    clip_grad: 2.0
+  sync_weight_no_wait: false
+  skip_fully_masked_samples: true
+  empty_cache_each_step: false
+weight_syncer:
+  type: bucket
+  bucket:
+    bucket_size: 134217728
+    bucket_dtype: null
+    bucket_device: cuda
+    is_agent: false
+    load_instant: true
+cluster:
+  num_nodes: 1
+  component_placement:
+    env: 0-2
+    actor: 3-5
+    rollout: 6-7
+  tracer:
+    enable: false
+runner:
+  task_type: embodied
+  weight_sync_interval: 1
+  logger:
+    log_path: ${oc.env:CARLA_OUTPUT_DIR}
+    project_name: streaming-vla
+    experiment_name: qwen35-token-grpo-G-j18591
+    logger_backends:
+    - tensorboard
+    - wandb
+  max_epochs: 5
+  max_steps: 5
+  only_eval: false
+  val_check_interval: -1
+  save_interval: -1
+  resume_dir: null
+  ckpt_path: null
+  per_worker_log: false
+  per_worker_log_path: null
+  overlap_env_bootstrap: false
+algorithm:
+  normalize_advantages: false
+  kl_penalty: kl
+  group_size: 2
+  reward_coef: 1.0
+  reward_type: chunk_level
+  logprob_type: chunk_level
+  entropy_type: token_level
+  update_epoch: 1
+  adv_type: grpo
+  loss_type: actor
+  loss_agg_func: token-mean
+  kl_beta: 0
+  entropy_bonus: 0
+  clip_ratio_high: 0.1
+  clip_ratio_low: 0.1
+  clip_ratio_c: 3.0
+  value_clip: 0.2
+  huber_delta: 10.0
+  gamma: 0.99
+  gae_lambda: 0.95
+  filter_rewards: false
+  rewards_lower_bound: 0.1
+  rewards_upper_bound: 0.9
+  recompute_logprobs: false
+  staleness_threshold: 1
+  rollout_store_size_per_rank: 1
+rollout:
+  sampling_params:
+    do_sample: true
+    temperature_train: 0.6
+    temperature_eval: 0.6
+    top_k: 0
+    top_p: 1
+    repetition_penalty: 1.0
+    add_BOS: false
+    max_new_tokens: 256
+  group_name: RolloutGroup
+  generation_backend: huggingface
+  recompute_logprobs: false
+  unnorm_key: new_embodiment
+  enable_offload: false
+  pipeline_stage_num: 1
+  model:
+    model_path: /research/d7/gds/yztian25/Autopilot-VeRL-prefetch-video/models/alpamayo2-2B-sft
+    precision: bf16
+reward:
+  use_reward_model: false
+critic:
+  use_critic_model: false

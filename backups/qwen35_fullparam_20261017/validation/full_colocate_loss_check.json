@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "cases": [
+    {
+      "full_parameter_training": false,
+      "maximum_gradient": 78962956959744.0,
+      "total_loss": 78962956959744.0
+    },
+    {
+      "full_parameter_training": true,
+      "maximum_gradient": 0.0,
+      "total_loss": 3.0
+    }
+  ],
+  "scope": "Real sync actor microbatch and registered actor loss on CPU. Full-mode dual clip caps extreme negative-advantage gradients, historical non-full default remains unchanged."
+}

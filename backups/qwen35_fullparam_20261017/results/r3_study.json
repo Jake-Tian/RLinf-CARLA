@@ -1,0 +1,47 @@
+{
+  "job_id": "18959",
+  "start_time": "2026-10-17T00:31:29+08:00",
+  "deadline_time": "2026-10-17T01:31:29+08:00",
+  "deadline_epoch": 1792171889,
+  "budget_minutes": 60,
+  "command": [
+    "sbatch",
+    "--parsable",
+    "--constraint=highcpucount",
+    "--time=00:55:00",
+    "--chdir=/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_r3hour_20261017_003129",
+    "--export=ALL,SIX_CONFIG_DIR=/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_r3hour_20261017_003129/configs,SIX_CONFIG_NAME=carla_grpo_qwen35_full_async_r3,PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True",
+    "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_r3hour_20261017_003129/run_three_rounds.sbatch",
+    "quick",
+    "L",
+    "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_r3hour_20261017_003129",
+    "runner.max_epochs=3 runner.max_steps=3",
+    "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_fullparam_20261016_150044/full_candidate_v5_generation_reuse"
+  ],
+  "source": "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_fullparam_20261016_150044/full_candidate_v5_generation_reuse",
+  "source_modified": false,
+  "config_sha256": "8e7804844c7d62c265ee31e6b07603e85727c0ee4775aaea3f77865a495907dc",
+  "layout": {
+    "env": "0-5",
+    "actor": "2-7",
+    "rollout": "0-1,7"
+  },
+  "global_batch": 6,
+  "micro_batch": 1,
+  "staleness_threshold": 1,
+  "horizon": 128,
+  "rounds": 3,
+  "expected_actual_global_updates": 96,
+  "prior_smoke": {
+    "job_id": 18955,
+    "actual_updates": 4,
+    "first_update_checks_passed": true,
+    "exit_status": "124 timeout, not normal exit"
+  },
+  "prior_full_horizon": {
+    "job_id": 18957,
+    "last_stable_publication_updates": 32,
+    "first_update_checks_passed": true,
+    "exit_status": "124 budget timeout"
+  }
+}

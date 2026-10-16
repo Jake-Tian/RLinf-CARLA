@@ -1,0 +1,32 @@
+{
+  "commit": "4b962b3f1885df6310e97ce6978f43913ba0e4c3",
+  "origin": "https://github.com/VOXXXX1874/Autopilot-VeRL.git",
+  "fork": "https://github.com/Jake-Tian/Autopilot-VeRL.git",
+  "files": [
+    "autopilot/__init__.py",
+    "autopilot/models/__init__.py",
+    "autopilot/models/alpamayo2/__init__.py",
+    "autopilot/models/alpamayo2/action_space/__init__.py",
+    "autopilot/models/alpamayo2/action_space/action_space.py",
+    "autopilot/models/alpamayo2/action_space/discrete_action_space.py",
+    "autopilot/models/alpamayo2/action_space/unicycle_accel_curvature.py",
+    "autopilot/models/alpamayo2/action_space/utils.py",
+    "autopilot/models/alpamayo2/base_model.py",
+    "autopilot/models/alpamayo2/delta_tokenizer.py",
+    "autopilot/models/alpamayo2/geometry/__init__.py",
+    "autopilot/models/alpamayo2/geometry/rotation.py",
+    "autopilot/models/alpamayo2/sft_base_model.py",
+    "autopilot/models/alpamayo2/token_utils.py",
+    "autopilot/models/alpamayo2/tokenizer_abi.py",
+    "autopilot/models/alpamayo2/trajectory_fuser.py",
+    "autopilot/utils/__init__.py",
+    "autopilot/utils/dataset/__init__.py",
+    "autopilot/utils/dataset/pai.py",
+    "autopilot/utils/dataset/pai_contract.py",
+    "autopilot/utils/dataset/pai_loader.py",
+    "autopilot/utils/dataset/pai_storage.py",
+    "autopilot/utils/dataset/qwen_processor.py"
+  ],
+  "local_differences": [],
+  "note": "Snapshot is for restoration only. Current CARLA path does not invoke lazy VeRL SFT helpers. External dependency removal is deferred. Original notices from HEAD are retained for comment-only local changes."
+}

@@ -1,0 +1,370 @@
+{
+  "created_at": "2026-10-17T01:11:31.227851+08:00",
+  "purpose": "source backup on existing main; external dependency removal deferred",
+  "public_base_commit": "88dcd6f6616feb7e33de3d221cfa9d102caec005",
+  "source_async": "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_fullparam_20261016_150044/full_candidate_v5_generation_reuse",
+  "source_colocate": "/research/d7/gds/yztian25/RLinf-CARLA/probes/qwen35_fullparam_20261016_150044/full_candidate_v6_colocate",
+  "framework_async_changes": [
+    "rlinf/config.py",
+    "rlinf/data/schema/embodied_types.py",
+    "rlinf/envs/sim/carla/__init__.py",
+    "rlinf/envs/sim/carla/env.py",
+    "rlinf/envs/sim/carla/reward.py",
+    "rlinf/envs/sim/carla/route.py",
+    "rlinf/envs/sim/carla/server.py",
+    "rlinf/envs/sim/carla/worker.py",
+    "rlinf/hybrid_engines/fsdp/strategy/fsdp2.py",
+    "rlinf/hybrid_engines/fsdp/utils.py",
+    "rlinf/models/__init__.py",
+    "rlinf/models/embodiment/starvla/utils/action_space.py",
+    "rlinf/runners/async_ppo_embodied_runner.py",
+    "rlinf/runners/embodied_runner.py",
+    "rlinf/workers/actor/async_ppo_fsdp_worker.py",
+    "rlinf/workers/rollout/hf/huggingface_worker.py"
+  ],
+  "framework_colocate_changes": [
+    "rlinf/workers/actor/embodied_fsdp_actor_worker.py"
+  ],
+  "source_files_are_copies": true,
+  "recommended_job": 18911,
+  "colocate_validation": "horizon16 only, job18943",
+  "r3_validation": "job18959 completed96 updates, slower than18911, not recommended",
+  "files": {
+    "README.md": {
+      "sha256": "b13b0a351104bfaeb420c32a2d5fd5a297c51c9844b2765484dbe173f17a37e1",
+      "bytes": 3345
+    },
+    "configs/carla_grpo_qwen35_full_async_v6.yaml": {
+      "sha256": "99d5a630f2ca72fec31cb005615d4b0333e371659d1cbfabd1ba1098172e588a",
+      "bytes": 6319
+    },
+    "configs/carla_grpo_qwen35_full_colocate_v6.yaml": {
+      "sha256": "31d819403f57a5b1a9b28f6005ef7b4fee66d5a3f9e3ee9d60935a9d5ea78a35",
+      "bytes": 6310
+    },
+    "dependencies/Autopilot-LICENSE": {
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "bytes": 11358
+    },
+    "dependencies/autopilot.json": {
+      "sha256": "fb9953b14763142979d7b28caf4495f5cd36f5639aab633d3e2c3980218a9179",
+      "bytes": 1602
+    },
+    "dependencies/autopilot_source/autopilot/__init__.py": {
+      "sha256": "51d837147d04a7f40bafa73016875282ad626b8a8eb7eeeb9d46081f58b48964",
+      "bytes": 46
+    },
+    "dependencies/autopilot_source/autopilot/models/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/__init__.py": {
+      "sha256": "a7dd345d6cda18bdc083580b18e050690ee0411d4120dbff4ac0d5d9c12d1bb4",
+      "bytes": 372
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/action_space/__init__.py": {
+      "sha256": "573ae149651205ebdd009ec49f722a3ee301628c419f04a1ee7187be0b26eea1",
+      "bytes": 283
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/action_space/action_space.py": {
+      "sha256": "49006267a50541ea296bfc3c55bb1a923d471b54aba5893e6b47a8224cf7c0de",
+      "bytes": 3058
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/action_space/discrete_action_space.py": {
+      "sha256": "486fcdc6ad99803023196329b8c90d9662609e4b3c473aedea9667cb6c3f272e",
+      "bytes": 4199
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/action_space/unicycle_accel_curvature.py": {
+      "sha256": "379284a8618c9dd8c2b324a1df6d1daf40196b12450604b0bccd982b99daf5dc",
+      "bytes": 13740
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/action_space/utils.py": {
+      "sha256": "3de42a10f5dea3135cfec3620f923d7bf12abd683ab4c218a153c6e7d54eb2d6",
+      "bytes": 17821
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/base_model.py": {
+      "sha256": "7f5ed8f2d6209231b01ba19d26f9a6871516e843cb194f96ee8b70e594614949",
+      "bytes": 16169
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/delta_tokenizer.py": {
+      "sha256": "de60bce2ee6ede689112ccf3d31e21034937e52e72db629dc23857b88ff8748e",
+      "bytes": 8847
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/geometry/__init__.py": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/geometry/rotation.py": {
+      "sha256": "fb7f6df97186f6c613af330bf32839dfbb4ea535e1a7aad08b6c2315b1e76d4d",
+      "bytes": 7540
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/sft_base_model.py": {
+      "sha256": "6da4af0a6aacdef7763b76d1a174432fa1f9a29b7e57b6e8638c06dab6e5af27",
+      "bytes": 10454
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/token_utils.py": {
+      "sha256": "4be92d48a00c08368b7df1cb32e6f36095f9fc280b36c7778b215f15daf09eee",
+      "bytes": 9550
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/tokenizer_abi.py": {
+      "sha256": "40578534c3993288745f1a8f5aa7dfa88699a2d8f626cba3c804668f040de7c3",
+      "bytes": 5448
+    },
+    "dependencies/autopilot_source/autopilot/models/alpamayo2/trajectory_fuser.py": {
+      "sha256": "fb22bd3c6472f9b5d5055af50fbbf79f2f6e0b54540ffe7a340217c424783f4b",
+      "bytes": 7079
+    },
+    "dependencies/autopilot_source/autopilot/utils/__init__.py": {
+      "sha256": "cc456041261cd0d8306efa59263b535411db7137a348fdd8346b9191a3dab8b1",
+      "bytes": 55
+    },
+    "dependencies/autopilot_source/autopilot/utils/dataset/__init__.py": {
+      "sha256": "89e2e2d0b83973ea7ab11b5f0e2526d9881d126248b5901f416904bc6558236d",
+      "bytes": 858
+    },
+    "dependencies/autopilot_source/autopilot/utils/dataset/pai.py": {
+      "sha256": "0abe6b2752ab2aac7cbe0dca825446443764ac916bac308680863fabb1e446a0",
+      "bytes": 29050
+    },
+    "dependencies/autopilot_source/autopilot/utils/dataset/pai_contract.py": {
+      "sha256": "538699f09ca9733e4732e38de09822923a89bfaf4b2f3c6477f0e4ee507b6932",
+      "bytes": 6016
+    },
+    "dependencies/autopilot_source/autopilot/utils/dataset/pai_loader.py": {
+      "sha256": "8671aa629d97dd0c17eff720ab1c5ad4544e02fad086b8383abddad172e24954",
+      "bytes": 8375
+    },
+    "dependencies/autopilot_source/autopilot/utils/dataset/pai_storage.py": {
+      "sha256": "f9dc5cb688500836ecbc06f3feb83f08726995960e49db55830ec1bc83ed9a23",
+      "bytes": 10916
+    },
+    "dependencies/autopilot_source/autopilot/utils/dataset/qwen_processor.py": {
+      "sha256": "675f69a9a92ea9396f3ebefd4f72e7f81b9b3e9bc82bc8e5aa77449e6a8d315a",
+      "bytes": 21759
+    },
+    "dependencies/versions.json": {
+      "sha256": "72d9f7e09d2bedeb649523753e0583193caa39c7227cf706bc7773084738bb43",
+      "bytes": 2358
+    },
+    "patches/autopilot_runtime.patch": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "patches/colocate_on_async.patch": {
+      "sha256": "9abb80e23af4e5031475fd9c1661dab02374a06f7f408d0a1aeb9030da8ea3ce",
+      "bytes": 899
+    },
+    "patches/rlinf_async.patch": {
+      "sha256": "70c7f096676abd0431db0622f476da83076b06910947d24c347f88fa9840080c",
+      "bytes": 31074
+    },
+    "results/metrics_18911.json": {
+      "sha256": "341ad1a1986bb303226c2a7a21e1af8811d180e26c0eda221aa6ca4460fada33",
+      "bytes": 12403
+    },
+    "results/metrics_18915.json": {
+      "sha256": "b818e585bfd1708b2690998b73fa15778dc681d3b33bbe50602fe039fbabfefa",
+      "bytes": 12304
+    },
+    "results/metrics_18943.json": {
+      "sha256": "ffdd8dae721184089fbb4b4ec85f79b9f0090322de18d776783ddd0d19ccb317",
+      "bytes": 2849
+    },
+    "results/metrics_18944.json": {
+      "sha256": "a0b640c35713e2c020b70e070bb1e5e2e055386887b66b283e78f04cb1b4c328",
+      "bytes": 12240
+    },
+    "results/r3_metrics_18959.json": {
+      "sha256": "a3aa8cf23f9a2aca74f6561584be8579fc2664ec674cfe68163cb85bbdc78973",
+      "bytes": 12783
+    },
+    "results/r3_result_summary.json": {
+      "sha256": "02b14a21d66df9d53e2e4692a833b11015571cdd73a145c7800b1ddc05432f1f",
+      "bytes": 5636
+    },
+    "results/r3_study.json": {
+      "sha256": "80dc463a098028be3dad481acd3cff59214a7ed5b68b534943beeffc1283cd72",
+      "bytes": 1761
+    },
+    "scripts/canonicalize_optimizer_counts.py": {
+      "sha256": "4e73eaa87f19fe14d15e219f26b3e6b3cb3d8f66e21a4cbd29c4cccbbc5c6755",
+      "bytes": 2134
+    },
+    "scripts/cleanup_slurm_children.py": {
+      "sha256": "9c3644a1ee7fb09ca88e44db14e109645cba769f82e3ebaad81cdfe5101f6125",
+      "bytes": 1430
+    },
+    "scripts/collect_full_metrics.py": {
+      "sha256": "80e8e9737c8992ec3839e55021d2aaa691c6a78d34f47182c5f1c1da5499c065",
+      "bytes": 6458
+    },
+    "scripts/grpo_runtime.sh": {
+      "sha256": "0bd82be79dbe9908af93597c55c22cffc5c44f612eaa681b98bdfd582d11af96",
+      "bytes": 2066
+    },
+    "scripts/run_full_async_v5.sbatch": {
+      "sha256": "3eab45da40835843080bf5158ec46abd8d411226fcbdf086bf3cb8307149e5b7",
+      "bytes": 11528
+    },
+    "scripts/run_full_colocate.sbatch": {
+      "sha256": "0fbfab1256bcaf310694e96a8d2ae0841e30fdd98dda9fbc16dc6afcf28cc1fc",
+      "bytes": 8201
+    },
+    "scripts/sample_affinity_cpu.py": {
+      "sha256": "43c3ae64a0ff8e525c60d0e3d961daa531f3396fef3a028af90606f2fbc59e97",
+      "bytes": 613
+    },
+    "scripts/watch_hang_injob.py": {
+      "sha256": "1ff9cf98eff2cf4fb2715f70a843b44d945ea6bdb09de612b95ca0dc491a87ef",
+      "bytes": 4360
+    },
+    "source/async/alpamayo_carla/__init__.py": {
+      "sha256": "40ca8b28115168e337797b4257e3fd1642352e57d2a0ae50d165c76ada5169e9",
+      "bytes": 74
+    },
+    "source/async/alpamayo_carla/environment.py": {
+      "sha256": "102588559706b3251ea0f75989f26d027833693b73db65e3a4bc7caa51cb494e",
+      "bytes": 5158
+    },
+    "source/async/alpamayo_carla/geometry.py": {
+      "sha256": "67858b12cecc376fb741f683092d4acff90f42ae1f33cb08d5d521788b7db2ba",
+      "bytes": 1403
+    },
+    "source/async/alpamayo_carla/policy.py": {
+      "sha256": "0716f343d992aa736b1cf4e20f515adbf065b61cac91599ef4032876c89868b5",
+      "bytes": 18849
+    },
+    "source/async/async_grpo/__init__.py": {
+      "sha256": "452ca10c200ed4b9a6caa5de08cdda064af34368fce7557e17434be45742e342",
+      "bytes": 157
+    },
+    "source/async/async_grpo/actor.py": {
+      "sha256": "a5b751b0c623a74710479e75e7f83b876f132bffd079b2aa936704f441fc7361",
+      "bytes": 12558
+    },
+    "source/async/async_grpo/group_integrity.py": {
+      "sha256": "d5ab87ab4ca301fb8f952ab515a8d7373ae57cd12a2766f257e17827c7e0f408",
+      "bytes": 4385
+    },
+    "source/async/async_grpo/rollout.py": {
+      "sha256": "9f7cf88377b0bdc1c73b26d6dcb0f19d73d6f0bab30416d0871c32a26b53ea3e",
+      "bytes": 2808
+    },
+    "source/async/async_grpo/train_async_carla.py": {
+      "sha256": "80fe012ddb1c64e859d47ddb8b3fb11e53055dc3114b8652760cd3e1e77c416f",
+      "bytes": 5887
+    },
+    "source/async/fla/__init__.py": {
+      "sha256": "ddb4b6b3dd2c798bdb3ca5ed71f351dae36d88faaeea929a13ad8deac7556631",
+      "bytes": 112
+    },
+    "source/async/full_audit.py": {
+      "sha256": "1a7e3f3f980f6f0dfbd483dd18fc1ef99a6c496c227908121f0cf437ec8970f2",
+      "bytes": 3419
+    },
+    "source/async/rlinf/config.py": {
+      "sha256": "ce21168c6a8845d37640ff15b9943d65b45676fceeb188df5b388bd003f27c8b",
+      "bytes": 85648
+    },
+    "source/async/rlinf/data/schema/embodied_types.py": {
+      "sha256": "0c8ba710eca2c72197320f403ed14ee9cfe1a5edb5b74e011459e85947c0eb0f",
+      "bytes": 22713
+    },
+    "source/async/rlinf/envs/sim/carla/__init__.py": {
+      "sha256": "b477730f81101c818e00d6815cd0e4b663817a74e3c3e7edd33478626db1d59d",
+      "bytes": 555
+    },
+    "source/async/rlinf/envs/sim/carla/env.py": {
+      "sha256": "fbf49b5c7c93e57e774078eabc61fbf23990db1ef862fa921ee8be06bd92e308",
+      "bytes": 16245
+    },
+    "source/async/rlinf/envs/sim/carla/reward.py": {
+      "sha256": "79cc89a6a775571b46bbdfad3e7a45dacf75b8ede12d9f9c1d5ec31fbdd2c407",
+      "bytes": 4745
+    },
+    "source/async/rlinf/envs/sim/carla/route.py": {
+      "sha256": "2d9856e081d2c65f4a235882b55c94fc3e2a2f826bfcdb8f07be822f183cbdda",
+      "bytes": 3719
+    },
+    "source/async/rlinf/envs/sim/carla/server.py": {
+      "sha256": "a1e6a76f57d7679cc2da68b15a8faffb563c13d4d1135b55a7b5e8c0d056f4c2",
+      "bytes": 9935
+    },
+    "source/async/rlinf/envs/sim/carla/worker.py": {
+      "sha256": "d0d3876f829c2521a71425b343f527ce8ea1f7906c29cf783e4b9353239fd3dd",
+      "bytes": 19021
+    },
+    "source/async/rlinf/hybrid_engines/fsdp/strategy/fsdp2.py": {
+      "sha256": "9638c77d6d2f730d9daca07a3e7c5efe1294fa61aac03454b7e4354b38099ab5",
+      "bytes": 7120
+    },
+    "source/async/rlinf/hybrid_engines/fsdp/utils.py": {
+      "sha256": "ed1fd1c02d176452e021f06d8d57a945c92ab6efccedccef42c21b2bc53bdf80",
+      "bytes": 46612
+    },
+    "source/async/rlinf/models/__init__.py": {
+      "sha256": "6e2d9974b07ca5552383ed3237d6a4ffec5424d215c26e78206c92d7a2f7a4c9",
+      "bytes": 12741
+    },
+    "source/async/rlinf/models/embodiment/starvla/utils/action_space.py": {
+      "sha256": "0e7ddfceb02b65a26b3ce0267a3a59948f321c0a57b9321efa6d0a3fa5705fc9",
+      "bytes": 7704
+    },
+    "source/async/rlinf/runners/async_ppo_embodied_runner.py": {
+      "sha256": "279d7dd70a14f1ef9ab625b430e653802b426cd125da1944b4cf040baa6201a8",
+      "bytes": 10840
+    },
+    "source/async/rlinf/runners/embodied_runner.py": {
+      "sha256": "899bea3074fcee03a28f3b8078786bf686dd358070e5328f9eb1364e888cf51a",
+      "bytes": 25689
+    },
+    "source/async/rlinf/workers/actor/async_ppo_fsdp_worker.py": {
+      "sha256": "3976cd667af0120ad81846b59acdb69dd8b659ea2ef67d7f9e109028cc5582fa",
+      "bytes": 24088
+    },
+    "source/async/rlinf/workers/rollout/hf/huggingface_worker.py": {
+      "sha256": "ca1634165dbca85883635d0b5d85b9c54931f5a5c878b4f1da3c4ef3d844e776",
+      "bytes": 42784
+    },
+    "source/colocate/full_colocate_workers.py": {
+      "sha256": "cd2954dd00a4480c9d6d66b323f2bdfa73af153b94d535f2983f7b77b21be8c9",
+      "bytes": 4548
+    },
+    "source/colocate/rlinf/workers/actor/embodied_fsdp_actor_worker.py": {
+      "sha256": "43fb5cc715e24b3f9148f7de6fb226c7eb3e624ce0fe48ef911c0b4dc9ecc3c5",
+      "bytes": 33058
+    },
+    "source/colocate/train_full_colocate.py": {
+      "sha256": "27ea40d1724a6132b5ddc6fbd872c7d20827b8b065f24ee32c673da098bc2002",
+      "bytes": 6564
+    },
+    "validation/atomic_sync_guard_check.json": {
+      "sha256": "651fc1009fccdf33e382f379e0ac3dcf89fcf5981d6853560a8af95d9d623b7b",
+      "bytes": 415
+    },
+    "validation/check_atomic_sync_guard.py": {
+      "sha256": "6932dc5a7838237bc5a09ec41cec15d8719b2cda694a8c78543dd774f0b0e88e",
+      "bytes": 2685
+    },
+    "validation/check_full_colocate_loss.py": {
+      "sha256": "53eee6f942944f62586ccf8c0dede9675623564354e085f380dd90a518aebe2e",
+      "bytes": 2249
+    },
+    "validation/full_colocate_loss_check.json": {
+      "sha256": "5046c0f12efeca4b987ab3f99d97f39b7eba33b76f2ca7d79f373496bbf4a79a",
+      "bytes": 464
+    },
+    "validation/verify_generation_reuse.py": {
+      "sha256": "d161abfecf23586a8120d8f2e87136cf47d9e217973b93c0018e7673ae033a22",
+      "bytes": 3733
+    },
+    "verify_backup.py": {
+      "sha256": "e75e8cd1ddfcfdb74f71936fb6bccaaf95a2846fe064351b162b66eb1f52c416",
+      "bytes": 1958
+    },
+    ".gitattributes": {
+      "sha256": "c021c1ac983342ddbdc2d2f7bec5d5ae752bc818ea47f3ac2c32b2986fb9998a",
+      "bytes": 169
+    }
+  }
+}
