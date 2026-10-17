@@ -554,6 +554,13 @@ class MultiStepRolloutWorker(Worker):
         result["expert_label_flag"] = bool(expert_label_flag)
         return actions, result
 
+    async def _predict_rollout_actions_with_sync_guard(self, *args, **kwargs):
+        lock = getattr(self, "_full_weight_sync_lock", None)
+        if lock is None:
+            return self._predict_rollout_actions(*args, **kwargs)
+        async with lock:
+            return self._predict_rollout_actions(*args, **kwargs)
+
     def _predict_rollout_actions(
         self,
         env_obs: dict[str, Any],
@@ -690,7 +697,7 @@ class MultiStepRolloutWorker(Worker):
                     merge_fn=self._merge_obs_batches,
                     infer_batch_size_fn=self._infer_env_batch_size,
                 ).async_wait()
-                actions, result = self._predict_rollout_actions(
+                actions, result = await self._predict_rollout_actions_with_sync_guard(
                     env_output["obs"],
                     final_obs=env_output.get("final_obs", None),
                     rlt_switch_flags=env_output.get("rlt_switch_flags", None),
@@ -741,7 +748,7 @@ class MultiStepRolloutWorker(Worker):
                 )
                 continue
 
-            actions, result = self._predict_rollout_actions(
+            actions, result = await self._predict_rollout_actions_with_sync_guard(
                 env_output["obs"],
                 final_obs=env_output.get("final_obs", None),
                 rlt_switch_flags=env_output.get("rlt_switch_flags", None),
@@ -819,7 +826,7 @@ class MultiStepRolloutWorker(Worker):
                     timeout_time=0.02,
                     recv_queue_size=self.rollout_queue_size,
                 )
-                actions, _ = self._predict_rollout_actions(
+                actions, _ = await self._predict_rollout_actions_with_sync_guard(
                     env_output["obs"],
                     mode="eval",
                     final_obs=env_output.get("final_obs", None),
@@ -853,7 +860,10 @@ class MultiStepRolloutWorker(Worker):
                             merge_fn=self._merge_obs_batches,
                             infer_batch_size_fn=self._infer_env_batch_size,
                         ).async_wait()
-                        actions, _ = self._predict_rollout_actions(
+                        (
+                            actions,
+                            _,
+                        ) = await self._predict_rollout_actions_with_sync_guard(
                             env_output["obs"],
                             mode="eval",
                             final_obs=env_output.get("final_obs", None),

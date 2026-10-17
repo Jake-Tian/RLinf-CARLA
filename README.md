@@ -1,130 +1,87 @@
-# RLinf + CARLA
+# RLinf + CARLA: Qwen3.5 Full-Parameter GRPO
 
 English | [简体中文](README.zh-CN.md)
 
-This repository integrates CARLA 0.9.16 with [RLinf](https://github.com/RLinf/RLinf) for synchronous and asynchronous GRPO training of a StarVLA policy with three-dimensional continuous controls. It is based on RLinf commit `db66ac56d1aa4a9c8441c4026e4212b21811970d` and preserves the default behavior of existing environments and models.
+This repository integrates CARLA 0.9.16 with RLinf for full-parameter online GRPO using `alpamayo2-2B-sft`, native Qwen3.5 and discrete acceleration/curvature action tokens. Both async and colocate execution are available. The required model and preprocessing source is bundled: **these Alpamayo entry points need no external Autopilot-VeRL checkout, VeRL installation or StarVLA installation**. Model weights, the CARLA server and maps, and route files remain separate assets.
 
-## What changed
+The [experiment report, in Chinese](docs/carla/Qwen35-CARLA训练效率调优.md) explains accepted optimizations, settings inherited from LoRA experiments, rejected candidates and measurement limits. The previous StarVLA continuous-action workflow is preserved in the [legacy guide](docs/carla/legacy_starvla.md). Its checkpoint is not interchangeable with this model.
 
-| Location | Changes |
-| --- | --- |
-| [CARLA environment](rlinf/envs/sim/carla/) | Adds server management, parallel environments, routes, observations, rewards, episode termination, and RLinf environment registration. |
-| [StarVLA integration](rlinf/models/) | Handles three-dimensional action unnormalization, configurable LoRA target modules, and configurations without a value head. |
-| [GRPO configurations](examples/embodiment/config/) | Adds synchronous, asynchronous colocated, and asynchronous split-GPU CARLA configurations. |
-| [Asynchronous entry point](examples/embodiment/carla/async_grpo/) | Extends RLinf's runner with GRPO group-integrity checks and optional rollout pacing. |
-| [CARLA utilities](examples/embodiment/carla/) | Adds an environment smoke test, configuration preflight, SFT data collection, and StarVLA data adapters. |
+## Install
 
-The training configurations use Qwen3-VL-2B with a StarVLA MLP action head. The control order is `steer, throttle, brake`, and the action horizon is 6. The default placement targets one machine with eight RTX 3090 GPUs. This repository does not include the CARLA server, model weights, datasets, or route files.
-
-## 1. Install
-
-Run these commands from the repository root on a Linux machine with NVIDIA GPUs. RLinf's installation script does not currently offer `--env carla`, so install the StarVLA + Libero dependency combination, then install a CARLA Python wheel that matches the **0.9.16** server version.
+From the repository root on a Linux NVIDIA GPU machine, create a separate Python 3.11 environment. Do not overwrite an existing StarVLA environment with Transformers 5. Do not install the old `.[embodied]` extra for this model: it restricts Transformers to version 4.
 
 ```bash
 git clone https://github.com/Jake-Tian/RLinf-CARLA.git
 cd RLinf-CARLA
-bash requirements/install.sh embodied --model starvla --env libero --install-rlinf
-source .venv/bin/activate
-python -m pip install /absolute/path/to/carla-0.9.16-wheel.whl
+python3.11 -m venv .venv-alpamayo
+source .venv-alpamayo/bin/activate
+python -m pip install --upgrade pip
+python -m pip install torch==2.11.0 torchvision==0.26.0 \
+  --index-url https://download.pytorch.org/whl/cu128
+python -m pip install -r requirements/embodied/alpamayo.txt
+python -m pip install flash-attn==2.8.3 --no-build-isolation
+python -m pip install -e . -e third_party/alpamayo
 ```
 
-The install script defaults to Python 3.11.14 and places the StarVLA checkout in `.venv/starVLA/`. Obtain the CARLA server, matching wheel, and maps using the [official CARLA installation guide](https://carla.readthedocs.io/en/latest/start_quickstart/).
+Flash Attention requires a wheel or build toolchain compatible with PyTorch and CUDA. The CARLA Python package must match the 0.9.16 server. See the [historical runtime versions](backups/qwen35_fullparam_20261017/dependencies/versions.json); the additional FLA dependency is pinned to `fla-core==0.5.0`. Release acceptance reuses existing pinned libraries while isolating external source imports. A fresh-system installation has not been tested. Acceptance evidence is under [validation](docs/carla/validation/).
 
-## 2. Configure assets
+## Prepare assets
 
-Each line of `route.txt` contains an `x y` coordinate; the file needs at least two distinct points. The checkpoint must match Qwen3-VL-2B and the three-dimensional action head. An unadapted general-purpose VLM checkpoint cannot be used directly. Run the following from the repository root:
+The model directory must contain its original weights, vocabulary, `config.json`, `reasoning_vla_config.json` and processor configuration. Use the compatible native Qwen3.5 discrete-action checkpoint. A general Qwen model or the previous StarVLA action head is not a direct replacement. Preserve normalization and the action-token ABI.
 
 ```bash
-export EMBODIED_PATH="$PWD/examples/embodiment"
 export CARLA_SERVER_DIR=/absolute/path/to/CARLA_0916
 export CARLA_ROUTE_FILE=/absolute/path/to/route.txt
-export CARLA_SFT_CHECKPOINT=/absolute/path/to/steps_8152_pytorch_model.pt
-export CARLA_OUTPUT_DIR=/absolute/path/to/results
+export CARLA_SFT_CHECKPOINT=/absolute/path/to/alpamayo2-2B-sft
+export CARLA_OUTPUT_DIR=/absolute/path/to/results/async
 export WANDB_MODE=offline
-mkdir -p "$CARLA_OUTPUT_DIR"
 ```
 
-If you do not yet have a compatible checkpoint, follow [SFT data and model](#sft-data-and-model) first. Export these variables before starting Ray so its workers can read the paths.
+A route is an `x y` text file with at least two distinct points. The checkpoint may live in any asset directory. It need not be inside an Autopilot checkout. The launcher replaces inherited `PYTHONPATH` with this repository and explicitly supplied runtime libraries. Set `ALPAMAYO_RUNTIME_DIR` only when reusing isolated dependency directories; a normal venv installation does not need it.
 
-## 3. Run preflight and an environment smoke test
+## Run training
 
-The configuration preflight requires the RLinf/StarVLA environment and a real checkpoint path. The environment smoke test starts CARLA and uses fixed actions to check images and basic interaction. It uses a generated test route, so it does not measure driving performance on `CARLA_ROUTE_FILE`.
+Default configurations target one machine with eight RTX3090 GPUs. Run CARLA, training and profiling on compute nodes. With Slurm, obtain an allocation and execute the commands inside the job, not on the login node. Each mode uses all eight GPUs when run separately.
+
+| Mode | Env | Actor | Rollout | Weight transfer |
+| --- | --- | --- | --- | --- |
+| async | 0–5 | 2–7 | 0–1 | GPU buckets, no model offload |
+| colocate | 0–5 | 2–7 | 2–7 | CPU buckets, alternating Actor/Rollout offload |
+
+Start with a short training check. Use a separate output directory for each run. Export asset variables before starting Ray so workers inherit them.
 
 ```bash
-python examples/embodiment/carla/verify_env_config.py carla_grpo_starvla
-python examples/embodiment/carla/smoke_carla_env.py \
-  --server-dir "$CARLA_SERVER_DIR" --steps 12
+# Run on a compute node with allocated GPUs.
+ray start --head --num-gpus=8 --num-cpus=64
+export RLINF_FULL_AUDIT=1
+export RLINF_ALL_RANK_AGE_AUDIT=1
+bash examples/embodiment/carla/train_alpamayo.sh async \
+  runner.max_epochs=1 runner.max_steps=1 \
+  env.train.max_episode_steps=16 env.train.max_steps_per_rollout_epoch=16
 ```
 
-Before a full run, use a short training run on the target route to check the environment, model, Ray setup, and output paths. CARLA servers consume substantial GPU memory. If you reduce the number of environments, adjust the GRPO group and batch settings accordingly.
+For colocate, use a new output directory and replace `async` with `colocate`. A [Slurm example](examples/embodiment/carla/run_alpamayo.sbatch) is provided; adapt its partition, reservation and resource arguments to your cluster. Outside Slurm, manage this task's Ray and CARLA lifecycle without stopping other tasks' processes.
 
-## 4. Run GRPO
-
-The [GRPO launch script](examples/embodiment/carla/train_grpo.sh) checks the asset paths, runs the configuration preflight, and starts the selected RLinf training entry point. Run it from the activated environment after exporting the variables in step 2. RLinf connects to an existing Ray cluster when available and otherwise initializes Ray locally.
+The full workload has 12 environments, group size 2, horizon 128, global batch 6 and microbatch 1, normally producing 32 actual global optimizer updates per round. This example runs three rounds and saves a checkpoint at the end:
 
 ```bash
-# Synchronous GRPO
-bash examples/embodiment/carla/train_grpo.sh sync
-
-# Asynchronous GRPO with separate actor and rollout GPUs and pacing enabled
-RLINF_PACE_TO_STALENESS=1 bash examples/embodiment/carla/train_grpo.sh async-split
+bash examples/embodiment/carla/train_alpamayo.sh async \
+  runner.max_epochs=3 runner.max_steps=3 runner.save_interval=3
 ```
 
-The mode selects a configuration; pacing is a separate switch that affects only asynchronous rollout:
+Keep the supplied full-parameter configuration, BF16 computation with FP32 state, gradient checkpointing, resharding, B1 generation without KV cache, within-generation vision reuse and full-weight synchronization. `staleness_threshold=1` counts publication versions, not individual optimizer updates. Retain the original behavior logprob instead of replacing it with rescoring under current weights.
 
-| Mode | Config | GPU placement (env / actor / rollout) | Train envs |
-| --- | --- | --- | --- |
-| `sync` | `carla_grpo_starvla` | `0-3 / 4-7 / 4-7` | 16 |
-| `async` | `carla_grpo_starvla_async` | `0-3 / 4-7 / 4-7` | 16 |
-| `async-split` | `carla_grpo_starvla_async_split` | `0-2 / 3-5 / 6-7` | 12 |
+The optional async scheduling experiment is disabled by default. Append `rollout.yield_before_prediction=true` to enable it. It completed an eight-round historical run but has no demonstrated end-to-end throughput gain.
 
-Use `bash examples/embodiment/carla/train_grpo.sh async` for the colocated asynchronous comparison. Set `RLINF_PACE_TO_STALENESS=1` for paced asynchronous rollout, or leave it unset for unpaced rollout. All three configurations assume eight GPUs. The configured `runner.max_steps: 5` is for a short integration run. Set `runner.max_steps` and `runner.max_epochs` for a longer run. Report the differing environment counts when comparing throughput. On Slurm or another scheduler, request resources appropriate for the selected configuration and invoke the same script inside the job.
+## Results and validation
 
-## SFT data and model
+The launch log prints the resolved configuration. The output directory contains model/checkpoint preflight evidence, TensorBoard and W&B offline data. Setting `RLINF_FULL_AUDIT=1` also records first-update logprobs, gradients, parameter changes and optimizer state, adding initialization and first-round overhead.
 
-[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) uses CARLA's BehaviorAgent to collect demonstrations and routes. Its default is 80 episodes, compatible with the YAML's eight held-out episodes:
+The recommended six-Actor layout achieved about 0.1367 actual updates/s, 17.3% above the three-Actor layout, in short steady measurements on eight RTX3090s. Full-parameter colocate lacks a matched full-horizon steady comparison, so async is not proven universally faster. The final yield run completed 256 updates and checkpoint saving, without optimizer-restore or convergence validation.
 
 ```bash
-python examples/embodiment/carla/collect_sft_data.py \
-  --server-dir "$CARLA_SERVER_DIR" \
-  --cache-dir /absolute/path/to/carla-cache \
-  --out /absolute/path/to/carla-data \
-  --routes /absolute/path/to/carla-data/routes
+python -m pytest tests/unit_tests/test_carla.py \
+  tests/unit_tests/test_utils.py -k 'carla or Alpamayo or clip_grad_updates_original_storage'
 ```
 
-Copy [`data_config.py`](examples/embodiment/carla/starVLA_carla/data_config.py) into `examples/RLinfCARLA/CARLA/train_files/data_registry/` in the StarVLA checkout, and [`starvla_carla.yaml`](examples/embodiment/carla/starVLA_carla/starvla_carla.yaml) into its parent `train_files/` directory:
-
-```bash
-SFT_DIR="$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files"
-mkdir -p "$SFT_DIR/data_registry"
-cp examples/embodiment/carla/starVLA_carla/data_config.py "$SFT_DIR/data_registry/"
-cp examples/embodiment/carla/starVLA_carla/starvla_carla.yaml "$SFT_DIR/"
-```
-
-Set `base_vlm` and `data_root_dir` in the copied YAML to local paths, then check the dataset. If you collect fewer episodes, reduce `holdout_episodes` in the YAML accordingly:
-
-```bash
-python examples/embodiment/carla/check_sft_dataset.py \
-  --starvla "$PWD/.venv/starVLA" \
-  --config "$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files/starvla_carla.yaml"
-```
-
-Start SFT from the activated environment with the [SFT launch script](examples/embodiment/carla/train_sft.sh). It runs the dataset check before calling StarVLA's `accelerate` trainer:
-
-```bash
-bash examples/embodiment/carla/train_sft.sh
-```
-
-The script defaults to eight processes and writes under `CARLA_OUTPUT_DIR/sft`. Set `SFT_NUM_PROCESSES` and adjust the YAML batch settings for another GPU count. Set `STARVLA_DIR` and `CARLA_SFT_CONFIG` when using a different StarVLA checkout or YAML. If the SFT checkpoint lacks action-window fields, inspect it first with `--dry-run` in the [repair script](examples/embodiment/carla/repair_starvla_ckpt_config.py), apply the suggested repair, and set `CARLA_SFT_CHECKPOINT` to the checkpoint path. See the [CARLA subdirectory guide](examples/embodiment/carla/README.md) for more detail.
-
-## Validation scope
-
-The original experiments ran synchronous and asynchronous training on eight RTX 3090 GPUs on linux7. Synchronous Job 14412 took about 345.2 seconds per steady-state step. Split-GPU asynchronous Job 14491 with pacing took about 246.0 seconds per step over steps 10–17. The runs used different environment counts, so these are efficiency observations and do not establish improved driving success. The published code passed local static and unit checks but has not undergone a complete GPU rerun from a fresh public checkout.
-
-## Origin and licenses
-
-This repository retains upstream RLinf's [Apache-2.0 license](LICENSE). Obtain the CARLA server, assets, and StarVLA under their respective licenses. Their code and model weights are not redistributed as repository files. The original upstream RLinf Chinese README is preserved as [README.upstream.zh-CN.md](README.upstream.zh-CN.md).
-
-## Qwen3.5 CARLA 全参数代码备份
-
-最新已验证源码、配置、依赖版本与结果摘要见[2026-10-17代码备份](backups/qwen35_fullparam_20261017/README.md)。该快照用于恢复实验代码，包含async与colocate入口，暂未替换下文原有默认安装流程。
+See [source and licensing](third_party/alpamayo/README.md) for the bundled compatibility code's upstream commit. Retained optional SFT helpers still contain lazy VeRL imports; the CARLA online path does not call them. The [historical source backup](backups/qwen35_fullparam_20261017/) is unchanged. Its scripts contain old absolute paths and deadlines and are provenance records, not current launch entry points.

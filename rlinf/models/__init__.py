@@ -356,6 +356,15 @@ def _register_builtin_models():
 _register_builtin_models()
 
 
+def _build_alpamayo2(cfg, torch_dtype):
+    from rlinf.models.embodiment.alpamayo2.policy import get_model
+
+    return get_model(cfg, torch_dtype)
+
+
+register_model("alpamayo2", _build_alpamayo2, category="embodied")
+
+
 def get_model(cfg: DictConfig):
     model_type = str(cfg.model_type)
     model_builder = _MODEL_REGISTRY.get(model_type)

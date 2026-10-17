@@ -90,6 +90,9 @@ def main(cfg) -> None:
 
         from .actor import CarlaGRPOAsyncActor
 
+        if str(cfg.actor.model.model_type) == "alpamayo2":
+            from .alpamayo_actor import CarlaGRPOAsyncActor
+
         assert cfg.algorithm.loss_type == "actor", (
             f"adv_type=grpo computes advantages per group, which only pairs with the "
             f"loss registered as 'actor'; loss_type={cfg.algorithm.loss_type} would "
@@ -105,9 +108,17 @@ def main(cfg) -> None:
     actor_group = actor_worker_cls.create_group(cfg).launch(
         cluster, name=cfg.actor.group_name, placement_strategy=actor_placement
     )
+    rollout_worker_cls = PacedAsyncMultiStepRolloutWorker
+    if str(cfg.actor.model.model_type) == "alpamayo2":
+        from .alpamayo_rollout import (
+            PacedAsyncMultiStepRolloutWorker as AlpamayoRolloutWorker,
+        )
+
+        rollout_worker_cls = AlpamayoRolloutWorker
+
     # Create rollout worker group
     rollout_placement = component_placement.get_strategy("rollout")
-    rollout_group = PacedAsyncMultiStepRolloutWorker.create_group(cfg).launch(
+    rollout_group = rollout_worker_cls.create_group(cfg).launch(
         cluster, name=cfg.rollout.group_name, placement_strategy=rollout_placement
     )
 

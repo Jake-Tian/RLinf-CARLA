@@ -93,6 +93,13 @@ class CarlaEnv:
     # -- construction ------------------------------------------------------
 
     def _init_workers(self) -> None:
+        worker_class = CarlaEnvWorker
+        if self.cfg.get("action_mode", "control") == "accel_curvature":
+            from rlinf.models.embodiment.alpamayo2.environment import (
+                AlpamayoCarlaWorker,
+            )
+
+            worker_class = AlpamayoCarlaWorker
         # `.get`, not attribute access: a plain-dict caller has no `cfg.server_dir`.
         server_dir = self.cfg.get("server_dir")
         if not server_dir:
@@ -132,7 +139,7 @@ class CarlaEnv:
                 route_length_m=float(self.cfg.get("route_length_m", 200.0)),
                 seed=self.seed_offset,
             )
-            worker = CarlaEnvWorker(worker_cfg, i, self.logdir)
+            worker = worker_class(worker_cfg, i, self.logdir)
             worker.start()
             self.workers.append(worker)
             self._history.append(deque(maxlen=max(1, self.history_len)))
@@ -237,6 +244,10 @@ class CarlaEnv:
             "task_descriptions": [o["task_descriptions"] for o in obs_list],
         }
         # wrist_images is absent on purpose; see CarlaEnvWorker._obs.
+
+        for key in ("image_frames", "ego_history_xyz", "ego_history_rot"):
+            if key in obs_list[0]:
+                obs[key] = _to_tensor(np.stack([o[key] for o in obs_list]))
 
         if self.history_len > 1:
             # Opt-in: chunk_step would otherwise append the final frame twice.

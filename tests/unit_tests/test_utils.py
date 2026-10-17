@@ -349,3 +349,17 @@ def test_redirected_entrypoint_failure_is_not_reported_as_success(tmp_path):
 
     assert result.returncode == 1, result.stderr
     assert "entrypoint failed" in (tmp_path / "exp" / "log" / "main.log").read_text()
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
+def test_clip_grad_updates_original_storage(dtype):
+    from rlinf.hybrid_engines.fsdp.utils import clip_grad_by_total_norm_
+
+    parameter = torch.nn.Parameter(torch.zeros(2, dtype=dtype))
+    parameter.grad = torch.tensor([3.0, 4.0], dtype=dtype)
+    original = parameter.grad
+    clip_grad_by_total_norm_([parameter], max_grad_norm=1.0, total_norm=5.0)
+    assert parameter.grad is original
+    torch.testing.assert_close(
+        parameter.grad.float(), torch.tensor([0.6, 0.8]), atol=0.004, rtol=0
+    )

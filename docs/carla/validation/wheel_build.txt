@@ -1,0 +1,9 @@
+Processing ./third_party/alpamayo
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: rlinf-alpamayo-compat
+  Building wheel for rlinf-alpamayo-compat (pyproject.toml): started
+  Building wheel for rlinf-alpamayo-compat (pyproject.toml): finished with status 'done'
+  Created wheel for rlinf-alpamayo-compat: filename=rlinf_alpamayo_compat-0.1.0-py3-none-any.whl size=62012 sha256=b611c1b44bcd7161657976ee3178f57be48030f1845e907a18924058330416d4
+  Stored in directory: /tmp/pip-ephem-wheel-cache-g19wiutm/wheels/0c/ea/61/3e8e637886dfece2a463757212c0a3e6326457e037e160a303
+Successfully built rlinf-alpamayo-compat

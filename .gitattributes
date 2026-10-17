@@ -1,0 +1,3 @@
+
+# Keep vendored upstream source hashes intact.
+third_party/alpamayo/autopilot/** -whitespace

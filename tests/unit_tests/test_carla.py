@@ -106,3 +106,29 @@ class CarlaIntegrationTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AlpamayoConfigurationTest(unittest.TestCase):
+    def test_full_parameter_protocol_and_asset_paths(self):
+        for mode in ("async", "colocate"):
+            with self.subTest(mode=mode):
+                cfg = yaml.safe_load(
+                    (
+                        ROOT
+                        / f"examples/embodiment/config/carla_grpo_alpamayo_full_{mode}.yaml"
+                    ).read_text()
+                )
+                self.assertTrue(cfg["actor"]["model"]["full_parameter_training"])
+                self.assertFalse(cfg["actor"]["model"]["is_lora"])
+                self.assertFalse(cfg["actor"]["model"]["reuse_frozen_vision"])
+                self.assertEqual(cfg["actor"]["global_batch_size"], 6)
+                self.assertEqual(cfg["env"]["train"]["group_size"], 2)
+                self.assertEqual(cfg["env"]["train"]["action_mode"], "accel_curvature")
+                self.assertEqual(
+                    cfg["actor"]["model"]["model_path"],
+                    "${oc.env:CARLA_SFT_CHECKPOINT}",
+                )
+                self.assertEqual(
+                    cfg["env"]["train"]["server_dir"], "${oc.env:CARLA_SERVER_DIR}"
+                )
+                self.assertFalse(cfg["rollout"]["yield_before_prediction"])

@@ -1,0 +1,22 @@
+{
+  "actor": {
+    "path": "rlinf/workers/actor/embodied_fsdp_actor_worker.py",
+    "sha256": "43fb5cc715e24b3f9148f7de6fb226c7eb3e624ce0fe48ef911c0b4dc9ecc3c5"
+  },
+  "policy": {
+    "path": "rlinf/models/embodiment/alpamayo2/policy.py",
+    "sha256": "d756e26662f75613a876289eff559602891dd230b8217c1ce8d414e62aee4486"
+  },
+  "probe_actor": {
+    "path": "examples/embodiment/carla/full_colocate_workers.py",
+    "sha256": "b8c565ee87d2cde3933cc02b977f6a19171d8aeffe9e0d35dfdacf5ec29c7b8b"
+  },
+  "model_compat": {
+    "path": "third_party/alpamayo/autopilot/models/alpamayo2/sft_base_model.py",
+    "sha256": "6da4af0a6aacdef7763b76d1a174432fa1f9a29b7e57b6e8638c06dab6e5af27"
+  },
+  "processor": {
+    "path": "third_party/alpamayo/autopilot/utils/dataset/qwen_processor.py",
+    "sha256": "675f69a9a92ea9396f3ebefd4f72e7f81b9b3e9bc82bc8e5aa77449e6a8d315a"
+  }
+}

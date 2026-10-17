@@ -1,0 +1,102 @@
+{
+  "passed": true,
+  "mode": "colocate",
+  "actual_global_updates": 4,
+  "ranks": [
+    {
+      "rank": 0,
+      "initial_logprob_max_abs": 0.0,
+      "passed": true,
+      "sampled_parameter_changes": {
+        "vision": {
+          "name": "backbone.vlm.model.visual.patch_embed.proj.weight",
+          "max_abs_delta": 9.797513484954834e-07
+        },
+        "language": {
+          "name": "backbone.vlm.model.language_model.layers.0.linear_attn.dt_bias",
+          "max_abs_delta": 4.76837158203125e-07
+        }
+      }
+    },
+    {
+      "rank": 1,
+      "initial_logprob_max_abs": 0.0,
+      "passed": true,
+      "sampled_parameter_changes": {
+        "vision": {
+          "name": "backbone.vlm.model.visual.patch_embed.proj.weight",
+          "max_abs_delta": 9.397044777870178e-07
+        },
+        "language": {
+          "name": "backbone.vlm.model.language_model.layers.0.linear_attn.dt_bias",
+          "max_abs_delta": 0.0
+        }
+      }
+    },
+    {
+      "rank": 2,
+      "initial_logprob_max_abs": 0.0,
+      "passed": true,
+      "sampled_parameter_changes": {
+        "vision": {
+          "name": "backbone.vlm.model.visual.patch_embed.proj.weight",
+          "max_abs_delta": 8.959323167800903e-07
+        },
+        "language": {
+          "name": "backbone.vlm.model.language_model.layers.0.linear_attn.dt_bias",
+          "max_abs_delta": 9.5367431640625e-07
+        }
+      }
+    },
+    {
+      "rank": 3,
+      "initial_logprob_max_abs": 0.0,
+      "passed": true,
+      "sampled_parameter_changes": {
+        "vision": {
+          "name": "backbone.vlm.model.visual.patch_embed.proj.weight",
+          "max_abs_delta": 9.348150342702866e-07
+        },
+        "language": {
+          "name": "backbone.vlm.model.language_model.layers.0.linear_attn.dt_bias",
+          "max_abs_delta": 9.5367431640625e-07
+        }
+      }
+    },
+    {
+      "rank": 4,
+      "initial_logprob_max_abs": 0.0,
+      "passed": true,
+      "sampled_parameter_changes": {
+        "vision": {
+          "name": "backbone.vlm.model.visual.patch_embed.proj.weight",
+          "max_abs_delta": 8.847564458847046e-07
+        },
+        "language": {
+          "name": "backbone.vlm.model.language_model.layers.0.linear_attn.dt_bias",
+          "max_abs_delta": 4.76837158203125e-07
+        }
+      }
+    },
+    {
+      "rank": 5,
+      "initial_logprob_max_abs": 0.0,
+      "passed": true,
+      "sampled_parameter_changes": {
+        "vision": {
+          "name": "backbone.vlm.model.visual.patch_embed.proj.weight",
+          "max_abs_delta": 9.5367431640625e-07
+        },
+        "language": {
+          "name": "backbone.vlm.model.language_model.layers.0.linear_attn.dt_bias",
+          "max_abs_delta": 4.76837158203125e-07
+        }
+      }
+    }
+  ],
+  "standalone_import_guard": true,
+  "scope": "Existing pinned runtime, bundled model source and blocked VeRL/StarVLA imports. Not a fresh OS installation or convergence test.",
+  "training_exit_code": 0,
+  "job": "19050",
+  "job_status": "COMPLETED 0:0"
+}

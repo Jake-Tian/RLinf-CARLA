@@ -1,0 +1,5 @@
+Processing /research/d7/gds/yztian25/RLinf-CARLA/probes/publication_20261017/wheels/rlinf_alpamayo_compat-0.1.0-py3-none-any.whl
+Installing collected packages: rlinf-alpamayo-compat
+Successfully installed rlinf-alpamayo-compat-0.1.0
+/research/d7/gds/yztian25/RLinf-CARLA/probes/publication_20261017/wheel_install/autopilot/models/alpamayo2/sft_base_model.py
+/research/d7/gds/yztian25/RLinf-CARLA/probes/publication_20261017/wheel_install/autopilot/utils/dataset/qwen_processor.py

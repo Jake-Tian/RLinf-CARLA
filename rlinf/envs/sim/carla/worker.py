@@ -19,6 +19,7 @@ from __future__ import annotations
 import math
 import os
 import queue
+import time
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -79,7 +80,7 @@ class CarlaWorkerConfig:
     spawn_index: int | None = None
 
     def __post_init__(self) -> None:
-        if self.action_mode not in ("control", "waypoints"):
+        if self.action_mode not in ("control", "waypoints", "accel_curvature"):
             raise ValueError(f"unknown action_mode {self.action_mode!r}")
         if self.action_mode == "waypoints":
             raise NotImplementedError(
@@ -90,6 +91,9 @@ class CarlaWorkerConfig:
 
 class CarlaEnvWorker:
     """A single driving environment. Not thread-safe; one process each."""
+
+    START_ATTEMPTS = 3
+    START_RETRY_WAIT_S = 15.0
 
     def __init__(self, cfg: CarlaWorkerConfig, worker_index: int, logdir: str) -> None:
         self.cfg = cfg
@@ -123,23 +127,46 @@ class CarlaEnvWorker:
     # -- lifecycle ---------------------------------------------------------
 
     def start(self) -> None:
-        """Bring up the server and connect; separate from __init__ so construction is cheap."""
+        """Start CARLA, retrying transient server and client startup failures."""
         import carla
 
-        self.server.start()
-        ok, why = self.server.wait_ready()
-        if not ok:
-            raise RuntimeError(
-                f"CARLA server for worker {self.worker_index} failed: {why}\n"
-                f"{self.server.failure_report()}"
-            )
+        for attempt in range(1, self.START_ATTEMPTS + 1):
+            self.server.start()
+            try:
+                ok, why = self.server.wait_ready()
+                if not ok:
+                    raise RuntimeError(
+                        f"CARLA server for worker {self.worker_index} failed: {why}\n"
+                        f"{self.server.failure_report()}"
+                    )
 
-        self._client = carla.Client(self.cfg.host, self.server.port)
-        self._client.set_timeout(60.0)
-        self._world = self._client.get_world()
-        self._map = self._world.get_map()
-        self._spawn_points = self._map.get_spawn_points()
-        self._apply_sync_settings()
+                self._client = carla.Client(self.cfg.host, self.server.port)
+                self._client.set_timeout(60.0)
+                self._world = self._client.get_world()
+                self._map = self._world.get_map()
+                self._spawn_points = self._map.get_spawn_points()
+                self._apply_sync_settings()
+                return
+            except Exception as exc:  # noqa: BLE001 -- re-raised on the last attempt
+                if attempt == self.START_ATTEMPTS:
+                    self._discard_partial_start()
+                    raise
+                print(
+                    f"[carla worker {self.worker_index}] start attempt "
+                    f"{attempt}/{self.START_ATTEMPTS} failed: {exc!r}\n"
+                    f"{self.server.tail()}",
+                    flush=True,
+                )
+                self._discard_partial_start()
+                time.sleep(self.START_RETRY_WAIT_S * attempt)
+
+    def _discard_partial_start(self) -> None:
+        """Drop half-open client state and stop the server; a retry needs both."""
+        self._client = None
+        self._world = None
+        self._map = None
+        self._spawn_points = []
+        self.server.stop()
 
     def close(self) -> None:
         self._destroy_actors()

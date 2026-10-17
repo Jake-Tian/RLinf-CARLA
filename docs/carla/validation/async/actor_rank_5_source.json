@@ -1,0 +1,30 @@
+{
+  "framework_actor": {
+    "path": "rlinf/workers/actor/async_ppo_fsdp_worker.py",
+    "sha256": "3976cd667af0120ad81846b59acdb69dd8b659ea2ef67d7f9e109028cc5582fa"
+  },
+  "adapter_actor": {
+    "path": "examples/embodiment/carla/async_grpo/alpamayo_actor.py",
+    "sha256": "b8a9760dc638bd56bc91d300a3212e72a6a975367541c5f42df9c1448ce1b1d0"
+  },
+  "policy": {
+    "path": "rlinf/models/embodiment/alpamayo2/policy.py",
+    "sha256": "d756e26662f75613a876289eff559602891dd230b8217c1ce8d414e62aee4486"
+  },
+  "model_compat": {
+    "path": "third_party/alpamayo/autopilot/models/alpamayo2/sft_base_model.py",
+    "sha256": "6da4af0a6aacdef7763b76d1a174432fa1f9a29b7e57b6e8638c06dab6e5af27"
+  },
+  "processor": {
+    "path": "third_party/alpamayo/autopilot/utils/dataset/qwen_processor.py",
+    "sha256": "675f69a9a92ea9396f3ebefd4f72e7f81b9b3e9bc82bc8e5aa77449e6a8d315a"
+  },
+  "fsdp_strategy": {
+    "path": "rlinf/hybrid_engines/fsdp/strategy/fsdp2.py",
+    "sha256": "9638c77d6d2f730d9daca07a3e7c5efe1294fa61aac03454b7e4354b38099ab5"
+  },
+  "fsdp_utils": {
+    "path": "rlinf/hybrid_engines/fsdp/utils.py",
+    "sha256": "ed1fd1c02d176452e021f06d8d57a945c92ab6efccedccef42c21b2bc53bdf80"
+  }
+}

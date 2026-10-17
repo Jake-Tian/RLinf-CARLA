@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-17",
+  "gpu": "8 x RTX3090, projgpu13",
+  "cpu": 64,
+  "horizon": 16,
+  "actual_global_updates_per_mode": 4,
+  "full_parameters": 2220993344,
+  "ranks_per_mode": 6,
+  "model_lp_max_abs": 0.0,
+  "standalone_import_guard": "Reject any verl/starVLA import in driver and Ray Python workers; required autopilot module origins inside checkout",
+  "async_job": 19048,
+  "colocate_job": 19050,
+  "async_training_rc": 0,
+  "colocate_training_rc": 0,
+  "async_slurm_status": "FAILED 1:0 solely because audit v1 demanded every sampled shard change",
+  "async_reaudit_v2": "passed without rerunning or changing training code",
+  "audit_change": "Per-rank gradients must exist and be finite with global clip2/FP32 Adam. Require nonzero sampled updates per role across ranks, not each local sample. All local deltas retained, including zeros.",
+  "code_unchanged_during_acceptance": true,
+  "all_initial_logprobs_max_abs": 0.0,
+  "model_relocation_ast_unchanged": true,
+  "vendor_source_files": 23,
+  "vendor_source_unchanged": true,
+  "cpu_tests": "7 passed, 19 deselected",
+  "lint": "Full configured Ruff check --preview and format for changed first-party Python files, excluding immutable vendor/backups",
+  "wheel_built": true,
+  "new_os_install_tested": false,
+  "optimizer_restore_tested": false,
+  "convergence_tested": false,
+  "gpu_finished_at": "2026-10-17T16:03:54+08:00",
+  "gpu_deadline": "2026-10-17T16:20:22+08:00",
+  "no_additional_gpu_jobs": true,
+  "compat_wheel_isolated_install_and_import": true,
+  "post_acceptance_changes": "Copyright, imports, formatting and unused diagnostic variable naming only; model computation/import bindings unchanged; CPU tests and both result audits repeated successfully.",
+  "wandb_offline_runs": {
+    "async": [
+      "async_19048/wandb/wandb/offline-run-20261017_155129-xo96y1s1/run-xo96y1s1.wandb"
+    ],
+    "colocate": [
+      "colocate_19050/wandb/wandb/offline-run-20261017_160014-r6fi4hav/run-r6fi4hav.wandb"
+    ]
+  }
+}

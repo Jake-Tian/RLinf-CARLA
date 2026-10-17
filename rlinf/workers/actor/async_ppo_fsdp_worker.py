@@ -84,6 +84,11 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
     async def recv_rollout_trajectories(self, input_channel):
         # drain channel
         if getattr(self, "_recv_queue", None) is None:
+            self._recv_slots = (
+                threading.BoundedSemaphore(self.rollout_store_size)
+                if os.environ.get("RLINF_ACTOR_CONSUME_ONCE", "0") == "1"
+                else None
+            )
             self._recv_queue = queue.Queue()
         if (
             getattr(self, "_recv_rollout_thread", None) is None
@@ -98,6 +103,10 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
 
     def _recv_rollout_thread_main(self, input_channel):
         while not self.should_stop:
+            if self._recv_slots is not None and not self._recv_slots.acquire(
+                timeout=0.1
+            ):
+                continue
             trajectory: Trajectory = input_channel.get()
             self.log_info(
                 f"recv trajectory versions.shape={trajectory.versions.shape} "
@@ -106,12 +115,19 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
             if trajectory.versions.min() < self.version - self.cfg.algorithm.get(
                 "staleness_threshold", None
             ):
+                if self._recv_slots is not None:
+                    self._recv_slots.release()
                 continue
             self._recv_queue.put(trajectory)
 
     @Worker.timer("drain_received_trajectories")
     def _drain_received_trajectories(self):
         while True:
+            if (
+                os.environ.get("RLINF_ACTOR_CONSUME_ONCE", "0") == "1"
+                and len(self.rollout_store) >= self.rollout_store_size
+            ):
+                break
             try:
                 traj: Trajectory = self._recv_queue.get_nowait()
                 self.log_info(
@@ -122,6 +138,8 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
                 if traj.versions.min() < self.version - self.cfg.algorithm.get(
                     "staleness_threshold", None
                 ):
+                    if self._recv_slots is not None:
+                        self._recv_slots.release()
                     continue
                 min_v = float(traj.versions.min().item())
                 mean_v = float(traj.versions.float().mean().item())
@@ -139,9 +157,12 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
         while True:
             self._drain_received_trajectories()
             with self.worker_timer("remove_below"):
+                before = len(self.rollout_store)
                 self.rollout_store.remove_below(
                     self.version - self.cfg.algorithm.get("staleness_threshold", None)
                 )
+                if self._recv_slots is not None and before > len(self.rollout_store):
+                    self._recv_slots.release(before - len(self.rollout_store))
             if len(self.rollout_store) >= self.rollout_store_size:
                 if on_policy_min_ratio <= 0.0:
                     break
@@ -165,6 +186,8 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
         torch.distributed.barrier()
 
         rollout_batch = self.rollout_store.topn(self.rollout_store_size)
+        if self._recv_slots is not None:
+            self._recv_slots.release(len(rollout_batch))
         version_metrics = self.rollout_store.get_metric()
         self.log_info(f"rollout store version metrics={version_metrics}")
 
@@ -374,6 +397,8 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
                         )
 
                     model_kwargs = {}
+                    if self.cfg.actor.get("skip_fully_masked_samples", False):
+                        model_kwargs["loss_mask"] = loss_mask
                     if SupportedModel(self.cfg.actor.model.model_type) in [
                         SupportedModel.OPENVLA,
                         SupportedModel.OPENVLA_OFT,
@@ -399,6 +424,59 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
                             use_cache=False,
                             **model_kwargs,
                         )
+
+                    if (
+                        self.optimizer_steps == 0
+                        and os.environ.get("RLINF_FULL_AUDIT") == "1"
+                    ):
+                        import json
+                        from pathlib import Path
+
+                        if mb_idx == 0:
+
+                            def cpu_snapshot(value):
+                                if isinstance(value, dict):
+                                    return {
+                                        key: cpu_snapshot(item)
+                                        for key, item in value.items()
+                                    }
+                                return (
+                                    value.detach().cpu()
+                                    if torch.is_tensor(value)
+                                    else value
+                                )
+
+                            torch.save(
+                                cpu_snapshot(
+                                    {
+                                        "forward_inputs": forward_inputs,
+                                        "prev_logprobs": old_logprobs,
+                                        "training_logprobs": out["logprobs"],
+                                        "loss_mask": loss_mask,
+                                        "versions": versions,
+                                    }
+                                ),
+                                Path(str(self.cfg.runner.logger.log_path))
+                                / f"first_microbatch_rank{self._rank}.pt",
+                            )
+                        delta = (
+                            out["logprobs"].detach().float() - old_logprobs.float()
+                        ).abs()
+                        with (
+                            Path(str(self.cfg.runner.logger.log_path))
+                            / f"initial_logprob_rank{self._rank}.jsonl"
+                        ).open("a") as stream:
+                            stream.write(
+                                json.dumps(
+                                    {
+                                        "max_abs": float(delta.max()),
+                                        "mean_abs": float(delta.mean()),
+                                        "behavior_versions": versions.unique().tolist(),
+                                        "microbatch": mb_idx,
+                                    }
+                                )
+                                + "\n"
+                            )
 
                     if SupportedModel(self.cfg.actor.model.model_type) in [
                         SupportedModel.GR00T,
@@ -465,7 +543,8 @@ class AsyncPPOEmbodiedFSDPActor(EmbodiedFSDPActor):
                     metrics_data["actor/total_loss"] = float(loss.detach().item())
                     append_to_dict(metrics, metrics_data)
 
-                torch.cuda.empty_cache()
+                if self.cfg.actor.get("empty_cache_each_step", True):
+                    torch.cuda.empty_cache()
 
                 grad_norm, lr_list = self.optimizer_step()
                 extra_metrics = {

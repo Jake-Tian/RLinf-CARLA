@@ -1,126 +1,87 @@
-# RLinf + CARLA
+# RLinf + CARLA：Qwen3.5 全参数 GRPO
 
 [English](README.md) | 简体中文
 
-在 [RLinf](https://github.com/RLinf/RLinf) 上接入 CARLA 0.9.16，使 StarVLA 的三维连续控制策略可以进行同步和异步 GRPO 训练。本仓库以 RLinf 提交 `db66ac56d1aa4a9c8441c4026e4212b21811970d` 为基线，保持原有环境和模型的默认行为。
+本仓库在RLinf中接入CARLA 0.9.16，使用 `alpamayo2-2B-sft` 的原生Qwen3.5与离散加速度/曲率action token进行全参数online GRPO，支持async和colocate。模型与预处理必需源码已经内置，**无需另外克隆Autopilot-VeRL或安装VeRL、StarVLA来运行这两个Alpamayo入口**。模型权重、CARLA服务端与地图、路线文件需另行准备。
 
-## 做了哪些更新
+[实验报告](docs/carla/Qwen35-CARLA训练效率调优.md)说明有效优化、从LoRA继承的配置、未采用方案和比较边界。旧版StarVLA连续动作训练保持可用，见[旧版说明](docs/carla/legacy_starvla.zh-CN.md)，不要混用两种checkpoint。
 
-| 位置 | 更新 |
-| --- | --- |
-| [CARLA 环境](rlinf/envs/sim/carla/) | 增加 server 管理、并行环境、route、观测、奖励和 episode 结束条件，并接入 RLinf 环境注册。 |
-| [StarVLA 适配](rlinf/models/) | 处理三维动作反归一化，支持可配置的 LoRA 目标模块，并兼容没有 value head 的配置。 |
-| [GRPO 配置](examples/embodiment/config/) | 新增同步、异步共卡、异步分卡三套 CARLA 配置。 |
-| [异步入口](examples/embodiment/carla/async_grpo/) | 基于 RLinf runner 增加 GRPO group 完整性检查和可选的 rollout 配速。 |
-| [CARLA 工具](examples/embodiment/carla/) | 增加环境 smoke、配置预检、SFT 数据采集及 StarVLA 数据适配。 |
+## 安装
 
-训练配置使用 Qwen3-VL-2B + StarVLA MLP 动作头，输出 `steer, throttle, brake`，action horizon 为 6。默认 placement 面向单机 8 张 RTX 3090。仓库不包含 CARLA server、模型权重、数据集或 route 文件。
-
-## 1. 安装
-
-在 Linux NVIDIA GPU 机器上，从仓库根目录执行。RLinf 安装脚本目前没有 `--env carla`，这里用 StarVLA + Libero 依赖组合，再安装与 CARLA server 同为 **0.9.16** 的 Python wheel。
+在Linux NVIDIA GPU机器上，从仓库根目录创建独立Python 3.11环境。不要把Qwen3.5的Transformers 5依赖直接覆盖到旧StarVLA环境，也不要为此模型安装旧的`.[embodied]` extra，它限制Transformers 4。
 
 ```bash
 git clone https://github.com/Jake-Tian/RLinf-CARLA.git
 cd RLinf-CARLA
-bash requirements/install.sh embodied --model starvla --env libero --install-rlinf
-source .venv/bin/activate
-python -m pip install /absolute/path/to/carla-0.9.16-wheel.whl
+python3.11 -m venv .venv-alpamayo
+source .venv-alpamayo/bin/activate
+python -m pip install --upgrade pip
+python -m pip install torch==2.11.0 torchvision==0.26.0 \
+  --index-url https://download.pytorch.org/whl/cu128
+python -m pip install -r requirements/embodied/alpamayo.txt
+python -m pip install flash-attn==2.8.3 --no-build-isolation
+python -m pip install -e . -e third_party/alpamayo
 ```
 
-安装脚本默认使用 Python 3.11.14，并将 StarVLA checkout 放在 `.venv/starVLA/`。CARLA server、匹配的 wheel 和地图请按 [CARLA 官方安装说明](https://carla.readthedocs.io/en/latest/start_quickstart/)准备。
+Flash Attention需要与PyTorch/CUDA匹配的wheel或编译工具链。CARLA Python包必须与0.9.16服务端匹配。测试环境的完整版本见[历史依赖记录](backups/qwen35_fullparam_20261017/dependencies/versions.json)，新增FLA依赖固定为`fla-core==0.5.0`。发布验收复用已有版本运行库，并隔离外部源码导入，尚未完成全新系统安装测试。验收证据见[validation](docs/carla/validation/)。
 
-## 2. 配置资产
+## 准备资产
 
-`route.txt` 每行包含一个 `x y` 坐标，至少需要两个不同的点。checkpoint 必须匹配 Qwen3-VL-2B 和三维动作头，不能直接使用未适配的通用 VLM 权重。以下命令在仓库根目录执行：
+模型目录应包含原始权重、词表、`config.json`、`reasoning_vla_config.json`和processor配置。必须使用兼容的原生Qwen3.5离散动作checkpoint，不能直接用通用Qwen模型或旧StarVLA动作头替换。保持原始normalization及动作token ABI。
 
 ```bash
-export EMBODIED_PATH="$PWD/examples/embodiment"
 export CARLA_SERVER_DIR=/absolute/path/to/CARLA_0916
 export CARLA_ROUTE_FILE=/absolute/path/to/route.txt
-export CARLA_SFT_CHECKPOINT=/absolute/path/to/steps_8152_pytorch_model.pt
-export CARLA_OUTPUT_DIR=/absolute/path/to/results
+export CARLA_SFT_CHECKPOINT=/absolute/path/to/alpamayo2-2B-sft
+export CARLA_OUTPUT_DIR=/absolute/path/to/results/async
 export WANDB_MODE=offline
-mkdir -p "$CARLA_OUTPUT_DIR"
 ```
 
-如果尚无适配 checkpoint，可先完成下方的 [SFT 数据与模型](#sft-数据与模型)流程。启动 Ray 前先导出环境变量，让 worker 能读取这些路径。
+路线为至少两个不同点的`x y`文本坐标。checkpoint可放在任意资产目录，无需位于Autopilot仓库中。启动脚本会替换继承的`PYTHONPATH`，只加入本仓库的实现和明确指定的依赖运行库。若复用隔离的第三方依赖目录，可设置`ALPAMAYO_RUNTIME_DIR`，正常venv安装无需设置。
 
-## 3. 预检和环境 smoke
+## 启动训练
 
-配置预检需要已安装的 RLinf/StarVLA 环境和真实 checkpoint 路径。环境 smoke 会启动 CARLA，用固定动作检查图像及基础交互。smoke 使用脚本生成的测试 route，不能代表给定 `CARLA_ROUTE_FILE` 的驾驶成绩。
+默认配置面向单机8张RTX3090。CARLA、训练、profiling都应在计算节点运行。使用Slurm时先申请资源，再在作业中执行命令，不要在登录节点直接启动训练。两种模式在同一时间分别使用全部8卡。
+
+| 模式 | Env | Actor | Rollout | 权重传输 |
+| --- | --- | --- | --- | --- |
+| async | 0–5 | 2–7 | 0–1 | GPU bucket，无模型offload |
+| colocate | 0–5 | 2–7 | 2–7 | CPU bucket，Actor/Rollout分阶段offload |
+
+先验证短训练。每次使用独立输出目录，设置资产变量后启动Ray，使worker继承环境。
 
 ```bash
-python examples/embodiment/carla/verify_env_config.py carla_grpo_starvla
-python examples/embodiment/carla/smoke_carla_env.py \
-  --server-dir "$CARLA_SERVER_DIR" --steps 12
+# 在已分配GPU的计算节点执行。
+ray start --head --num-gpus=8 --num-cpus=64
+export RLINF_FULL_AUDIT=1
+export RLINF_ALL_RANK_AGE_AUDIT=1
+bash examples/embodiment/carla/train_alpamayo.sh async \
+  runner.max_epochs=1 runner.max_steps=1 \
+  env.train.max_episode_steps=16 env.train.max_steps_per_rollout_epoch=16
 ```
 
-正式训练前，建议在目标 route 上做短训练链，确认环境、模型、Ray 和结果路径都正常。CARLA server 占用较多显存；缩小环境数量时，也需同步调整 GRPO group 和 batch 配置。
+测试colocate时使用新的输出目录，并把`async`换成`colocate`。Slurm示例见[run_alpamayo.sbatch](examples/embodiment/carla/run_alpamayo.sbatch)，按集群调整分区、reservation和资源参数。非Slurm运行应自行管理本任务的Ray和CARLA生命周期，避免停止其他任务的进程。
 
-## 4. 运行 GRPO
-
-[GRPO 启动脚本](examples/embodiment/carla/train_grpo.sh)会检查资产路径、运行配置预检，再调用相应的 RLinf 训练入口。激活训练环境并设置第 2 步的变量后运行。RLinf 会优先连接已有 Ray 集群，没有时在本机初始化。
+完整horizon配置为12环境、group2、horizon128、global batch6、microbatch1，一轮通常32次实际更新。以下运行三轮，并在末轮保存checkpoint：
 
 ```bash
-# 同步 GRPO
-bash examples/embodiment/carla/train_grpo.sh sync
-
-# 异步 GRPO，actor 与 rollout 分卡，启用配速
-RLINF_PACE_TO_STALENESS=1 bash examples/embodiment/carla/train_grpo.sh async-split
+bash examples/embodiment/carla/train_alpamayo.sh async \
+  runner.max_epochs=3 runner.max_steps=3 runner.save_interval=3
 ```
 
-模式决定使用哪份配置，配速是仅影响异步 rollout 的独立开关：
+当前推荐保持完整配置中的全参数训练、BF16计算/FP32状态、gradient checkpointing、reshard、B1无KV cache生成、生成内视觉复用与完整权重同步。`staleness_threshold=1`按发布版本计数，不代表最多落后一次optimizer更新。不要用当前权重重算并替换旧行为logprob。
 
-| 模式 | 配置 | GPU 布局（env / actor / rollout） | 训练环境数 |
-| --- | --- | --- | --- |
-| `sync` | `carla_grpo_starvla` | `0-3 / 4-7 / 4-7` | 16 |
-| `async` | `carla_grpo_starvla_async` | `0-3 / 4-7 / 4-7` | 16 |
-| `async-split` | `carla_grpo_starvla_async_split` | `0-2 / 3-5 / 6-7` | 12 |
+yield是可选调度实验，默认关闭，可在async命令末尾加`rollout.yield_before_prediction=true`。它已完成八轮历史验证，但尚无明确的整体吞吐收益。
 
-用 `bash examples/embodiment/carla/train_grpo.sh async` 运行 actor 与 rollout 共卡的异步对照。设置 `RLINF_PACE_TO_STALENESS=1` 启用异步配速，不设置则不配速。三个配置默认均为 8 GPU 布局。配置中的 `runner.max_steps: 5` 是短链检查值，正式训练前按预算调整 `runner.max_steps` 和 `runner.max_epochs`。比较吞吐量时，应同时报告环境数的差异。在 Slurm 等调度器上，申请与配置匹配的资源，并在作业中调用同一脚本。
+## 查看结果与验证
 
-## SFT 数据与模型
+启动日志打印已解析配置。输出目录包含模型来源及checkpoint预检记录、TensorBoard和W&B offline。开启`RLINF_FULL_AUDIT=1`后还保存首更新的logprob、梯度、参数变化和optimizer状态证据，会增加初始化与首轮开销。
 
-[`collect_sft_data.py`](examples/embodiment/carla/collect_sft_data.py) 使用 CARLA BehaviorAgent 采集示范数据和 route。默认采集 80 条 episode，满足 YAML 中保留 8 条 episode 的设置：
+历史推荐六Actor布局稳态约0.1367实际updates/s，相比三Actor布局高17.3%，仅为八张3090上的短稳态结果。全参colocate尚无匹配完整horizon的公平稳态对照，不能宣称async一定更优。最后yield长测完成256次更新及存盘，但未验证optimizer恢复或训练收敛。
 
 ```bash
-python examples/embodiment/carla/collect_sft_data.py \
-  --server-dir "$CARLA_SERVER_DIR" \
-  --cache-dir /absolute/path/to/carla-cache \
-  --out /absolute/path/to/carla-data \
-  --routes /absolute/path/to/carla-data/routes
+python -m pytest tests/unit_tests/test_carla.py \
+  tests/unit_tests/test_utils.py -k 'carla or Alpamayo or clip_grad_updates_original_storage'
 ```
 
-将 [`data_config.py`](examples/embodiment/carla/starVLA_carla/data_config.py) 放到 StarVLA checkout 的 `examples/RLinfCARLA/CARLA/train_files/data_registry/`，将 [`starvla_carla.yaml`](examples/embodiment/carla/starVLA_carla/starvla_carla.yaml) 放到上一级 `train_files/`。可按下列命令复制：
-
-```bash
-SFT_DIR="$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files"
-mkdir -p "$SFT_DIR/data_registry"
-cp examples/embodiment/carla/starVLA_carla/data_config.py "$SFT_DIR/data_registry/"
-cp examples/embodiment/carla/starVLA_carla/starvla_carla.yaml "$SFT_DIR/"
-```
-
-把 YAML 中的 `base_vlm` 和 `data_root_dir` 改为本机路径，然后检查数据。若采集较少的 episode，也要相应降低 YAML 中的 `holdout_episodes`：
-
-```bash
-python examples/embodiment/carla/check_sft_dataset.py \
-  --starvla "$PWD/.venv/starVLA" \
-  --config "$PWD/.venv/starVLA/examples/RLinfCARLA/CARLA/train_files/starvla_carla.yaml"
-```
-
-在已激活的训练环境中调用 [SFT 启动脚本](examples/embodiment/carla/train_sft.sh)。它会先检查数据集，再调用 StarVLA 的 `accelerate` 训练入口：
-
-```bash
-bash examples/embodiment/carla/train_sft.sh
-```
-
-脚本默认使用 8 个进程，结果写入 `CARLA_OUTPUT_DIR/sft`。使用其他 GPU 数量时，设置 `SFT_NUM_PROCESSES` 并调整 YAML 中的 batch 配置。使用其他 StarVLA checkout 或 YAML 时，设置 `STARVLA_DIR` 和 `CARLA_SFT_CONFIG`。SFT checkpoint 如果缺少 action-window 字段，先用 [修复脚本](examples/embodiment/carla/repair_starvla_ckpt_config.py) 的 `--dry-run` 检查，再按提示修复，最后将 checkpoint 设为 `CARLA_SFT_CHECKPOINT`。细节见 [CARLA 子目录说明](examples/embodiment/carla/README.md)。
-
-## 验证范围
-
-原实验在 linux7 的 8 张 RTX 3090 上运行过同步与异步训练链路。同步 Job 14412 稳态约 345.2 秒/步；分卡异步且配速的 Job 14491 在第 10 至 17 步约 246.0 秒/步。两者环境数不同，这些数字仅是效率观察，不能证明驾驶成功率提升。公开代码经过本地静态和单元检查，尚未在新的公开 checkout 上重跑完整 GPU 训练。
-
-## 来源与许可
-
-本仓库保留上游 RLinf 的 [Apache-2.0 许可](LICENSE)。CARLA server、资产和 StarVLA 分别按各自项目的许可获取，其代码和权重没有作为仓库文件再分发。上游 RLinf 的原版中文介绍保存在 [README.upstream.zh-CN.md](README.upstream.zh-CN.md)。
+[代码来源和许可](third_party/alpamayo/README.md)记录内置兼容源码的上游commit。保留的可选SFT辅助接口仍有延迟VeRL导入，当前CARLA在线训练不调用这些接口。历史[源码备份](backups/qwen35_fullparam_20261017/)保持不变，其中脚本有旧绝对路径和截止时间，仅供追溯，不作为运行入口。

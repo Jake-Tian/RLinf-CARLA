@@ -1,0 +1,23 @@
+{
+  "model_type": "qwen3_5",
+  "transformers": "5.10.2",
+  "model_imports": {
+    "autopilot.models.alpamayo2.sft_base_model": {
+      "path": "third_party/alpamayo/autopilot/models/alpamayo2/sft_base_model.py",
+      "sha256": "6da4af0a6aacdef7763b76d1a174432fa1f9a29b7e57b6e8638c06dab6e5af27"
+    },
+    "autopilot.utils.dataset.qwen_processor": {
+      "path": "third_party/alpamayo/autopilot/utils/dataset/qwen_processor.py",
+      "sha256": "675f69a9a92ea9396f3ebefd4f72e7f81b9b3e9bc82bc8e5aa77449e6a8d315a"
+    },
+    "rlinf.models.embodiment.alpamayo2.policy": {
+      "path": "rlinf/models/embodiment/alpamayo2/policy.py",
+      "sha256": "d756e26662f75613a876289eff559602891dd230b8217c1ce8d414e62aee4486"
+    }
+  },
+  "checkpoint_metadata_sha256": {
+    "config.json": "ea9f46e328d0ca3852a0ce9b7ab5125353fd3e24a39636aa182bcd7ce7d59630",
+    "reasoning_vla_config.json": "9d2d1bc3235cf10bcbdd47c8f64fae337308516e6551d1e0bea7101db11530f7",
+    "tokenizer_config.json": "7586e679ac644a26bd620f74562660610dee5c6e81599bd9a8bcae218d827d9a"
+  }
+}

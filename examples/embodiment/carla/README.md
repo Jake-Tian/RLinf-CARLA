@@ -1,5 +1,7 @@
 # RLinf + CARLA
 
+原生Qwen3.5离散动作的全参数Alpamayo训练见[主README](../../../README.zh-CN.md)。本页保留旧StarVLA连续动作流程，两个checkpoint不能混用。
+
 这个目录说明如何在 RLinf 中运行 CARLA 0.9.16 的同步与异步 GRPO。仓库基于 RLinf 提交 `db66ac56d1aa4a9c8441c4026e4212b21811970d`。CARLA 适配器位于 `rlinf/envs/sim/carla/`，GRPO 配置位于 `examples/embodiment/config/`，异步入口位于本目录的 `async_grpo/`。原有环境和模型配置保持默认行为。
 
 ## 准备资产

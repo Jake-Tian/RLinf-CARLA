@@ -1,0 +1,1 @@
+{"version": 0, "time_begin": 1792224206.1922972, "time_end": 1792224227.501079, "optimizer_before": 0, "optimizer_after": 4, "actual_global_updates": 4, "new_samples_per_rank": 4, "valid_samples_per_rank": 4}

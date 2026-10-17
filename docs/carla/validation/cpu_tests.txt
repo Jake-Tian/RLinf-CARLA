@@ -1,0 +1,22 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.14, pytest-9.1.1, pluggy-1.6.0
+rootdir: /research/d7/gds/yztian25/RLinf-CARLA-public/tests/unit_tests
+configfile: pytest.ini
+plugins: hydra-core-1.4.0.dev6, typeguard-4.6.0, anyio-4.15.1
+collected 26 items / 19 deselected / 7 selected
+
+tests/unit_tests/test_carla.py .....                                     [ 71%]
+tests/unit_tests/test_utils.py ..                                        [100%]
+
+=============================== warnings summary ===============================
+test_utils.py::test_clip_grad_updates_original_storage[dtype0]
+test_utils.py::test_clip_grad_updates_original_storage[dtype0]
+  /research/d7/gds/yztian25/RLinf/.venv-starvla-libero/lib/python3.11/site-packages/torch/jit/_script.py:1488: DeprecationWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+test_utils.py: 14 warnings
+  /research/d7/gds/yztian25/RLinf/.venv-starvla-libero/lib/python3.11/site-packages/torch/jit/_script.py:365: DeprecationWarning: `torch.jit.script_method` is deprecated. Please switch to `torch.compile` or `torch.export`.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 7 passed, 19 deselected, 16 warnings in 18.31s ================

@@ -18,6 +18,7 @@ from typing import ContextManager, Union
 import torch
 import torch.nn as nn
 from torch.distributed.device_mesh import DeviceMesh
+from torch.distributed.tensor import DTensor
 from torch.optim import Optimizer
 
 from rlinf.config import torch_dtype_from_precision
@@ -169,9 +170,15 @@ class FSDP2Strategy(FSDPStrategyBase):
         Returns:
             - float: The total norm of the gradients before clipping.
         """
+        parameters = list(model.parameters())
+        shard_group = None
+        for parameter in parameters:
+            if isinstance(parameter.grad, DTensor):
+                shard_group = parameter.grad.device_mesh["fsdp"].get_group()
+                break
         grad_norm = get_grad_norm(
-            model.parameters(),
-            dp_group=self._dp_group,
+            parameters,
+            dp_group=shard_group,
             norm_type=norm_type,
         )
         clip_grad_by_total_norm_(

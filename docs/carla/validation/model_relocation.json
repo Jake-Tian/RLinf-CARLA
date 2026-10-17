@@ -1,0 +1,25 @@
+{
+  "model_adapter": {
+    "policy.py": {
+      "backup_sha256": "0716f343d992aa736b1cf4e20f515adbf065b61cac91599ef4032876c89868b5",
+      "release_sha256": "d756e26662f75613a876289eff559602891dd230b8217c1ce8d414e62aee4486",
+      "normalized_ast_sha256": "27f11f5304445204031b69090c71ea15fde3ff320f0b16576f8161feb119ed67",
+      "same_computation_ast": true
+    },
+    "environment.py": {
+      "backup_sha256": "102588559706b3251ea0f75989f26d027833693b73db65e3a4bc7caa51cb494e",
+      "release_sha256": "18883097cde9c7ea7e4f2c98653cdd8e35d38f56e21c48cb21b328c2cc9c604c",
+      "normalized_ast_sha256": "067b2c483f9dfc733c5a3d6c6803cb008dc2d063909a7adc05bbc76721847e30",
+      "same_computation_ast": true
+    },
+    "geometry.py": {
+      "backup_sha256": "67858b12cecc376fb741f683092d4acff90f42ae1f33cb08d5d521788b7db2ba",
+      "release_sha256": "9d6e4eaa1c4bdcd95b38e554bd4b947836490249a18e2bc16ff7e631bd85b7c7",
+      "normalized_ast_sha256": "023d01f5d6366f8200ecece8b7bd06aa768a08c809a7ba16bfa1875d32cdea24",
+      "same_computation_ast": true
+    }
+  },
+  "vendor_files_checked": 23,
+  "vendor_files_unchanged": true,
+  "stage": "At GPU acceptance, before final copyright/import/whitespace pass; see post_acceptance_formatting.json for the final model equivalence proof."
+}

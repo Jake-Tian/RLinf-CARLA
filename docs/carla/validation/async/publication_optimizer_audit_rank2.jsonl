@@ -1,0 +1,2 @@
+{"version": 0, "optimizer_steps_at_request": 0, "optimizer_steps_at_completion": 0, "stable_during_sync": true}
+{"version": 1, "optimizer_steps_at_request": 4, "optimizer_steps_at_completion": 4, "stable_during_sync": true}

@@ -641,7 +641,8 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
                     train_micro_batch[idx] = None
                     del batch
 
-                self.torch_platform.empty_cache()
+                if self.cfg.actor.get("empty_cache_each_step", True):
+                    self.torch_platform.empty_cache()
 
                 grad_norm, lr_list = self.optimizer_step()
                 data = {
@@ -742,6 +743,9 @@ class EmbodiedFSDPActor(FSDPModelManager, Worker):
             "task_type": self.cfg.runner.task_type,
             "critic_warmup": self.optimizer_steps < self.critic_warmup_steps,
         }
+
+        if self.cfg.actor.model.get("full_parameter_training", False):
+            loss_kwargs["clip_ratio_c"] = self.cfg.algorithm.get("clip_ratio_c", 3.0)
 
         if SupportedModel(self.cfg.actor.model.model_type) in [
             SupportedModel.GR00T_N1D6,

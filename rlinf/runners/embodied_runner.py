@@ -453,8 +453,8 @@ class EmbodiedRunner:
         self.metric_logger.finish()
 
         # Stop logging thread
-        self.stop_logging = True
         self.log_queue.join()  # Wait for all queued logs to be processed
+        self.stop_logging = True
         self.log_thread.join(timeout=1.0)
 
     def _should_profile_step(self, step_idx: int) -> bool:
